@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project Graph Manager</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+#app { display: flex; flex-direction: column; height: 100vh; min-height: 520px; background: #1a1a18; color: #c2c0b6; font-family: var(--font-sans, sans-serif); }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 0.5px solid #3a3a36; flex-shrink: 0; }
+#toolbar h1 { font-size: 13px; font-weight: 500; color: #c2c0b6; flex: 1; }
+.tb-btn { background: #2c2c2a; border: 0.5px solid #4a4a46; color: #c2c0b6; font-size: 12px; padding: 5px 14px; border-radius: 6px; cursor: pointer; }
+.tb-btn:hover { background: #3a3a36; }
+#todo-toggle-btn { display: flex; align-items: center; gap: 5px; }
+#todo-toggle-btn .todo-count { background: #3a3a36; border-radius: 8px; font-size: 10px; padding: 1px 5px; color: #888780; min-width: 16px; text-align: center; }
+#todo-toggle-btn.has-pending .todo-count { background: #534ab7; color: #c5c0f0; }
+#canvas-wrap { flex: 1; overflow: auto; position: relative; cursor: default; user-select: none; }
+#canvas-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+#canvas-wrap::-webkit-scrollbar-track { background: transparent; }
+#canvas-wrap::-webkit-scrollbar-thumb { background: #3a3a36; border-radius: 3px; }
+#canvas-wrap::-webkit-scrollbar-corner { background: transparent; }
+#canvas { position: relative; }
+svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+.node-el {
+  position: absolute; width: 200px; background: #252523; border-radius: 10px;
+  padding: 14px 14px 14px 18px; cursor: grab;
+  transition: border-color .15s, opacity .2s, box-shadow .2s; user-select: none;
+}
+.node-el.dragging { cursor: grabbing; }
+.node-el.done { opacity: 0.32; filter: grayscale(0.6); }
+.node-title { font-size: 13px; font-weight: 500; color: #e0ddd4; word-break: break-word; margin-bottom: 3px; }
+.node-subtitle { font-size: 11px; color: #888780; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node-note { font-size: 11px; color: #5f5e5a; margin-top: 5px; white-space: pre-wrap; word-break: break-word; min-height: 12px; }
+.node-title-input { font-size: 13px; font-weight: 500; color: #e0ddd4; background: transparent; border: none; outline: none; width: 100%; font-family: inherit; cursor: text; }
+.node-subtitle-input { font-size: 11px; color: #888780; background: transparent; border: none; outline: none; width: 100%; font-family: inherit; cursor: text; }
+.node-note-input { font-size: 11px; color: #5f5e5a; background: transparent; border: none; outline: none; width: 100%; font-family: inherit; resize: none; min-height: 32px; cursor: text; }
+.node-controls { position: absolute; top: 7px; right: 7px; display: flex; gap: 3px; opacity: 0; transition: opacity .15s; }
+.node-el:hover .node-controls, .node-el.done .node-controls { opacity: 1; }
+.ctrl-btn { width: 17px; height: 17px; border-radius: 4px; border: 0.5px solid #4a4a46; background: #2c2c2a; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #888780; }
+.ctrl-btn:hover { background: #3a3a36; color: #c2c0b6; }
+.ctrl-btn.done-btn.active { background: #2a2a28; color: #888780; }
+.ctrl-btn.del-btn:hover { background: #501313; border-color: #791f1f; color: #f09595; }
+.ctrl-btn.priority-btn.active { color: #e8c547; background: #28240e; border-color: #6b5a1c; }
+@keyframes pglow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 14px 4px var(--glow-color), 0 4px 24px var(--glow-color); }
+  50%       { box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 32px 10px var(--glow-color), 0 8px 48px var(--glow-color); }
+}
+.node-el.priority { animation: pglow 2.2s ease-in-out infinite; }
+@keyframes rglow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.07), 0 0 22px 7px var(--glow-color), 0 6px 40px var(--glow-color); }
+  50%       { box-shadow: 0 0 0 2px rgba(255,255,255,0.07), 0 0 52px 18px var(--glow-color), 0 12px 72px var(--glow-color); }
+}
+.node-el.root { background: #332f28; border-radius: 12px; border-top: 3px solid var(--bar-color, #7f77dd) !important; }
+.node-el.root:not(.done):not(.priority) { animation: rglow 2.8s ease-in-out infinite; }
+.node-el.root .node-title { font-size: 18px; font-weight: 700; color: #f5f2e8; letter-spacing: 0.02em; }
+.node-el.root .node-subtitle { font-size: 12px; color: #a09d94; }
+.add-child-btn {
+  position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  background: #2c2c2a; border: 0.5px solid #4a4a46; color: #888780;
+  font-size: 13px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; z-index: 10; line-height: 1; opacity: 0; transition: opacity .15s;
+}
+#empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: #5f5e5a; font-size: 13px; gap: 10px; }
+
+/* Drop indicator for sibling reorder */
+.drop-indicator {
+  position: absolute; height: 2px; background: #7f77dd; border-radius: 1px;
+  pointer-events: none; z-index: 50;
+  box-shadow: 0 0 6px rgba(127,119,221,0.5);
+}
+.drop-indicator::before {
+  content: ''; position: absolute; left: -4px; top: -3px;
+  width: 8px; height: 8px; border-radius: 50%; background: #7f77dd;
+}
+
+/* ── Minimap ── */
+#minimap {
+  position: fixed; bottom: 16px; right: 16px;
+  width: 160px; height: 110px;
+  background: #1a1a18;
+  border: 0.5px solid #3a3a36;
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 60;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  cursor: crosshair;
+}
+#minimap canvas { position: absolute; top: 0; left: 0; }
+#minimap-viewport {
+  position: absolute;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.04);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ── Todo Panel ── */
+#todo-panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 260px;
+  background: #1e1e1c;
+  border-left: 0.5px solid #3a3a36;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .22s cubic-bezier(.4,0,.2,1);
+  z-index: 100;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.45);
+}
+#todo-panel.open { transform: translateX(0); }
+#todo-panel-header {
+  display: flex; align-items: center;
+  padding: 14px 16px 12px;
+  border-bottom: 0.5px solid #2e2e2c;
+  flex-shrink: 0;
+}
+#todo-panel-header h2 { font-size: 12px; font-weight: 500; color: #c2c0b6; flex: 1; letter-spacing: 0.03em; }
+#todo-close-btn { width: 20px; height: 20px; border-radius: 4px; border: 0.5px solid #3a3a36; background: transparent; color: #5f5e5a; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#todo-close-btn:hover { background: #2c2c2a; color: #c2c0b6; }
+#todo-add-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 0.5px solid #2a2a28;
+  flex-shrink: 0;
+}
+#todo-input {
+  flex: 1; background: #252523; border: 0.5px solid #3a3a36; border-radius: 6px;
+  color: #c2c0b6; font-size: 12px; font-family: inherit;
+  padding: 5px 9px; outline: none;
+}
+#todo-input::placeholder { color: #4a4a46; }
+#todo-input:focus { border-color: #4a4a46; }
+#todo-add-ok { width: 24px; height: 24px; border-radius: 5px; border: 0.5px solid #3a3a36; background: #252523; color: #888780; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+#todo-add-ok:hover { background: #3a3a36; color: #c2c0b6; }
+#todo-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+#todo-list::-webkit-scrollbar { width: 3px; }
+#todo-list::-webkit-scrollbar-track { background: transparent; }
+#todo-list::-webkit-scrollbar-thumb { background: #3a3a36; border-radius: 2px; }
+.todo-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 14px;
+  transition: background .1s;
+}
+.todo-item:hover { background: #252523; }
+.todo-check {
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 0.5px solid #4a4a46; background: transparent;
+  cursor: pointer; flex-shrink: 0; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: transparent; transition: all .1s;
+}
+.todo-check:hover { border-color: #888780; }
+.todo-item.checked .todo-check { background: #2c2c2a; border-color: #3a3a36; color: #5f5e5a; }
+.todo-label {
+  flex: 1; font-size: 12px; color: #c2c0b6; line-height: 1.45;
+  word-break: break-word; cursor: text; outline: none; min-height: 16px;
+}
+.todo-item.checked .todo-label { color: #4a4a46; text-decoration: line-through; text-decoration-color: #3a3a36; }
+.todo-del {
+  width: 14px; height: 14px; border-radius: 3px; border: none; background: transparent;
+  color: transparent; font-size: 10px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  transition: all .1s;
+}
+.todo-item:hover .todo-del { color: #5f5e5a; }
+.todo-del:hover { color: #f09595 !important; background: #501313; }
+#todo-footer {
+  padding: 8px 14px 12px;
+  border-top: 0.5px solid #2a2a28;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+#todo-footer span { font-size: 10px; color: #4a4a46; }
+#todo-clear-done { font-size: 10px; color: #4a4a46; background: none; border: none; cursor: pointer; padding: 0; font-family: inherit; }
+#todo-clear-done:hover { color: #888780; }
+.todo-empty { padding: 32px 14px; text-align: center; color: #3a3a36; font-size: 12px; }
+
+/* ── Flags ── */
+.ctrl-btn.flag-btn.flag-now      { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
+.ctrl-btn.flag-btn.flag-tomorrow { color: #f0a030; background: #221908; border-color: #6b480e; }
+.ctrl-btn.flag-btn.flag-urgent   { color: #e85050; background: #280e0e; border-color: #7a2020; }
+.node-flag {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; margin-top: 5px; padding: 1px 6px 2px;
+  border-radius: 3px; font-weight: 500; letter-spacing: 0.01em;
+}
+.node-flag.flag-now      { background: rgba(74,158,255,0.1);  color: #4a9eff; border: 0.5px solid rgba(74,158,255,0.22); }
+.node-flag.flag-tomorrow { background: rgba(240,160,48,0.1);  color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
+.node-flag.flag-urgent   { background: rgba(232,80,80,0.1);   color: #e85050; border: 0.5px solid rgba(232,80,80,0.22); }
+
+/* ── Up-to-date badge ── */
+.node-uptodate {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 10px; color: #5dcaa5; margin-top: 5px; opacity: 0.75;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <h1>Projects</h1>
+    <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
+      ◈ Essentials <span class="todo-count">0</span>
+    </button>
+    <button id="add-btn" class="tb-btn">+ New project</button>
+  </div>
+  <div id="canvas-wrap">
+    <div id="canvas">
+      <svg id="arrows"></svg>
+      <div id="nodes-layer"></div>
+      <div id="empty-state"><span style="font-size:28px">◻</span><div>No projects yet — click <strong style="color:#888780">+ New project</strong> to start</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Minimap -->
+<div id="minimap">
+  <canvas id="minimap-canvas" width="160" height="110"></canvas>
+  <div id="minimap-viewport"></div>
+</div>
+
+<!-- Todo Panel -->
+<div id="todo-panel">
+  <div id="todo-panel-header">
+    <h2>Essentials</h2>
+    <button id="todo-close-btn">✕</button>
+  </div>
+  <div id="todo-add-row">
+    <input id="todo-input" placeholder="Add a task…" maxlength="120" autocomplete="off">
+    <button id="todo-add-ok" title="Add">+</button>
+  </div>
+  <div id="todo-list"></div>
+  <div id="todo-footer">
+    <span id="todo-remaining"></span>
+    <button id="todo-clear-done">Clear done</button>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'pgraph_v4';
+const NODE_W = 200, NODE_H_BASE = 78, COL_GAP = 80, ROW_GAP = 24, PROJ_GAP = 60;
+const OFFSET_X = 60, OFFSET_Y = 60;
+const MINI_W = 160, MINI_H = 110;
+
+const PALETTE = [
+  { border: '#534ab7', glow: 'rgba(83,74,183,0.28)',  arrow: '#534ab7', bar: '#7f77dd' },
+  { border: '#0f6e56', glow: 'rgba(15,110,86,0.28)',   arrow: '#1d9e75', bar: '#5dcaa5' },
+  { border: '#993c1d', glow: 'rgba(153,60,29,0.28)',   arrow: '#d85a30', bar: '#f0997b' },
+  { border: '#993556', glow: 'rgba(153,53,86,0.28)',   arrow: '#d4537e', bar: '#ed93b1' },
+  { border: '#185fa5', glow: 'rgba(24,95,165,0.28)',   arrow: '#378add', bar: '#85b7eb' },
+  { border: '#854f0b', glow: 'rgba(133,79,11,0.28)',   arrow: '#ba7517', bar: '#ef9f27' },
+  { border: '#3b6d11', glow: 'rgba(59,109,17,0.28)',   arrow: '#639922', bar: '#97c459' },
+  { border: '#5f5e5a', glow: 'rgba(95,94,90,0.22)',    arrow: '#888780', bar: '#b4b2a9' },
+];
+
+const FLAG_LABELS = { now: '● Now', tomorrow: '● Tomorrow', urgent: '● Urgent' };
+const FLAG_CYCLE  = { now: 'tomorrow', tomorrow: 'urgent', urgent: null };
+
+let state = { projects: [], todos: [] };
+let idC = 1;
+let activeEdit = null;
+let lastPositions = {};
+
+const canvasWrap = document.getElementById('canvas-wrap');
+
+// ── Minimap ───────────────────────────────────────────────────────────────────
+function renderMinimap() {
+  const mc = document.getElementById('minimap-canvas');
+  const mv = document.getElementById('minimap-viewport');
+  const canvasEl = document.getElementById('canvas');
+  const cW = Math.max(400, parseFloat(canvasEl.style.width)  || canvasWrap.clientWidth);
+  const cH = Math.max(300, parseFloat(canvasEl.style.height) || canvasWrap.clientHeight);
+
+  const s = Math.min(MINI_W / cW, MINI_H / cH);
+
+  mc.width = MINI_W;
+  mc.height = MINI_H;
+  const ctx = mc.getContext('2d');
+  ctx.clearRect(0, 0, MINI_W, MINI_H);
+
+  state.projects.forEach((proj, pi) => {
+    const col = PALETTE[pi % PALETTE.length];
+    function drawNode(node) {
+      const pos = lastPositions[node.id];
+      if (pos) {
+        ctx.fillStyle = col.bar;
+        ctx.globalAlpha = node.done ? 0.18 : 0.55;
+        const rx = pos.x * s, ry = pos.y * s;
+        const rw = Math.max(2, pos.w * s), rh = Math.max(2, pos.h * s);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 1);
+        else ctx.rect(rx, ry, rw, rh);
+        ctx.fill();
+      }
+      (node.children || []).forEach(drawNode);
+    }
+    drawNode(proj);
+  });
+  ctx.globalAlpha = 1;
+
+  const sL = canvasWrap.scrollLeft;
+  const sT = canvasWrap.scrollTop;
+  mv.style.left   = Math.max(0, sL * s) + 'px';
+  mv.style.top    = Math.max(0, sT * s) + 'px';
+  mv.style.width  = Math.min(MINI_W, canvasWrap.clientWidth  * s) + 'px';
+  mv.style.height = Math.min(MINI_H, canvasWrap.clientHeight * s) + 'px';
+}
+
+canvasWrap.addEventListener('scroll', renderMinimap);
+
+document.getElementById('minimap').addEventListener('mousedown', e => {
+  const canvasEl = document.getElementById('canvas');
+  const cW = Math.max(400, parseFloat(canvasEl.style.width)  || canvasWrap.clientWidth);
+  const cH = Math.max(300, parseFloat(canvasEl.style.height) || canvasWrap.clientHeight);
+  const s = Math.min(MINI_W / cW, MINI_H / cH);
+  const rect = document.getElementById('minimap-canvas').getBoundingClientRect();
+  canvasWrap.scrollLeft = (e.clientX - rect.left)  / s - canvasWrap.clientWidth  / 2;
+  canvasWrap.scrollTop  = (e.clientY - rect.top)   / s - canvasWrap.clientHeight / 2;
+});
+
+// ── screenToCanvas ────────────────────────────────────────────────────────────
+function screenToCanvas(cx, cy) {
+  const r = canvasWrap.getBoundingClientRect();
+  return {
+    x: cx - r.left + canvasWrap.scrollLeft,
+    y: cy - r.top  + canvasWrap.scrollTop,
+  };
+}
+
+// ── Keyboard navigation ───────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (activeEdit) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const STEP = 80;
+  switch (e.key) {
+    case 'ArrowUp':    canvasWrap.scrollBy(0, -STEP); e.preventDefault(); break;
+    case 'ArrowDown':  canvasWrap.scrollBy(0,  STEP); e.preventDefault(); break;
+    case 'ArrowLeft':  canvasWrap.scrollBy(-STEP, 0); e.preventDefault(); break;
+    case 'ArrowRight': canvasWrap.scrollBy( STEP, 0); e.preventDefault(); break;
+  }
+});
+
+// ── Sibling Reorder Drag ──────────────────────────────────────────────────────
+let dragSt = null;
+
+function findParentInfo(nodeId) {
+  const ri = state.projects.findIndex(p => p.id === nodeId);
+  if (ri >= 0) return { arr: state.projects, index: ri };
+  function search(node) {
+    for (let i = 0; i < (node.children || []).length; i++) {
+      if (node.children[i].id === nodeId) return { arr: node.children, index: i };
+      const r = search(node.children[i]);
+      if (r) return r;
+    }
+    return null;
+  }
+  for (const p of state.projects) { const r = search(p); if (r) return r; }
+  return null;
+}
+
+function computeDropIndex(arr, canvasY) {
+  let best = 0, bestDist = Infinity;
+  for (let i = 0; i <= arr.length; i++) {
+    let lineY;
+    if (i === 0) {
+      const p = arr[0] ? lastPositions[arr[0].id] : null;
+      lineY = p ? p.y - ROW_GAP / 2 : null;
+    } else if (i === arr.length) {
+      const last = arr[arr.length - 1] ? lastPositions[arr[arr.length - 1].id] : null;
+      lineY = last ? last.y + last.h + ROW_GAP / 2 : null;
+    } else {
+      const prev = arr[i - 1] ? lastPositions[arr[i - 1].id] : null;
+      const next = arr[i] ? lastPositions[arr[i].id] : null;
+      lineY = (prev && next) ? (prev.y + prev.h + next.y) / 2 : null;
+    }
+    if (lineY == null) continue;
+    const d = Math.abs(canvasY - lineY);
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  return best;
+}
+
+function indicatorLineY(arr, insertIdx) {
+  if (insertIdx === 0) {
+    const p = arr[0] ? lastPositions[arr[0].id] : null;
+    return p ? p.y - ROW_GAP / 2 : null;
+  }
+  if (insertIdx >= arr.length) {
+    const last = arr[arr.length - 1] ? lastPositions[arr[arr.length - 1].id] : null;
+    return last ? last.y + last.h + ROW_GAP / 2 : null;
+  }
+  const prev = arr[insertIdx - 1] ? lastPositions[arr[insertIdx - 1].id] : null;
+  const next = arr[insertIdx] ? lastPositions[arr[insertIdx].id] : null;
+  return (prev && next) ? (prev.y + prev.h + next.y) / 2 : null;
+}
+
+// ── Unified mousemove / mouseup ───────────────────────────────────────────────
+document.addEventListener('mousemove', e => {
+  if (!dragSt) return;
+  const dx = e.clientX - dragSt.startX, dy = e.clientY - dragSt.startY;
+  if (!dragSt.active && Math.sqrt(dx * dx + dy * dy) < 6) return;
+
+  if (!dragSt.active) {
+    dragSt.active = true;
+    const srcEl = document.getElementById('node-' + dragSt.nodeId);
+    if (srcEl) { dragSt.srcEl = srcEl; srcEl.style.opacity = '0.22'; srcEl.classList.add('dragging'); }
+
+    dragSt.ghost = srcEl ? srcEl.cloneNode(true) : document.createElement('div');
+    dragSt.ghost.removeAttribute('id');
+    Object.assign(dragSt.ghost.style, {
+      position: 'fixed', pointerEvents: 'none', zIndex: '9999', opacity: '0.85',
+    });
+    document.body.appendChild(dragSt.ghost);
+
+    dragSt.indicator = document.createElement('div');
+    dragSt.indicator.className = 'drop-indicator';
+    dragSt.indicator.style.display = 'none';
+    document.getElementById('nodes-layer').appendChild(dragSt.indicator);
+
+    document.body.style.cursor = 'grabbing';
+  }
+
+  dragSt.ghost.style.left = (e.clientX - NODE_W / 2) + 'px';
+  dragSt.ghost.style.top  = (e.clientY - 20) + 'px';
+
+  const cp = screenToCanvas(e.clientX, e.clientY);
+  const info = findParentInfo(dragSt.nodeId);
+  if (info && info.arr.length > 1) {
+    const insertIdx = computeDropIndex(info.arr, cp.y);
+    dragSt.dropIndex = insertIdx;
+    const iy = indicatorLineY(info.arr, insertIdx);
+    const sibPos = info.arr[0] ? lastPositions[info.arr[0].id] : null;
+    if (iy != null && sibPos) {
+      dragSt.indicator.style.display = 'block';
+      dragSt.indicator.style.left  = sibPos.x + 'px';
+      dragSt.indicator.style.top   = iy + 'px';
+      dragSt.indicator.style.width = NODE_W + 'px';
+    } else {
+      dragSt.indicator.style.display = 'none';
+    }
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (dragSt) {
+    document.body.style.cursor = '';
+    if (dragSt.active) {
+      if (dragSt.srcEl) { dragSt.srcEl.style.opacity = ''; dragSt.srcEl.classList.remove('dragging'); }
+      if (dragSt.ghost) dragSt.ghost.remove();
+      if (dragSt.indicator) dragSt.indicator.remove();
+
+      const info = findParentInfo(dragSt.nodeId);
+      if (info && dragSt.dropIndex != null) {
+        const oldIdx = info.index;
+        const insertAt = dragSt.dropIndex > oldIdx ? dragSt.dropIndex - 1 : dragSt.dropIndex;
+        if (insertAt !== oldIdx) {
+          const [node] = info.arr.splice(oldIdx, 1);
+          info.arr.splice(insertAt, 0, node);
+          saveState();
+          render();
+        }
+      }
+    }
+    dragSt = null;
+  }
+});
+
+// ── State ─────────────────────────────────────────────────────────────────────
+function genId() { return 'n' + (idC++); }
+function todoId() { return 't' + Date.now() + Math.random().toString(36).slice(2, 6); }
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) {
+      const loaded = JSON.parse(s);
+      state = loaded;
+      if (!Array.isArray(state.todos)) state.todos = [];
+      let mx = 0;
+      function walk(n) { mx = Math.max(mx, parseInt(n.id.slice(1)) || 0); (n.children || []).forEach(walk); }
+      state.projects.forEach(walk);
+      idC = mx + 1;
+    }
+  } catch(e) {}
+}
+
+function newNode(title = 'New project') {
+  return { id: genId(), title, subtitle: '', note: '', done: false, priority: false, flag: null, children: [] };
+}
+function allDescendantsDone(node) {
+  if (!node.children || !node.children.length) return true;
+  return node.children.every(c => c.done && allDescendantsDone(c));
+}
+function nodeHeight(node) {
+  let h = NODE_H_BASE;
+  const titleLines = Math.max(1, Math.ceil((node.title || '').length / 22));
+  if (titleLines > 1) h += (titleLines - 1) * 18;
+  if (node.note && node.note.trim()) h += Math.max(1, Math.ceil(node.note.length / 22)) * 14;
+  if (node.flag && !node.done) h += 20;
+  if (!node.done && node.children && node.children.length > 0 && allDescendantsDone(node)) h += 18;
+  return h;
+}
+function subtreeHeight(node) {
+  const h = nodeHeight(node);
+  if (!node.children || !node.children.length) return h;
+  const ch = node.children.reduce((s, c) => s + subtreeHeight(c) + ROW_GAP, -ROW_GAP);
+  return Math.max(h, ch);
+}
+function layoutProject(proj, startY) {
+  const positions = {};
+  function place(node, col, top) {
+    const h = nodeHeight(node);
+    const sh = subtreeHeight(node);
+    const myY = top + (sh - h) / 2;
+    positions[node.id] = { x: OFFSET_X + col * (NODE_W + COL_GAP), y: OFFSET_Y + startY + myY, w: NODE_W, h };
+    if (node.children && node.children.length) {
+      let childTop = top;
+      node.children.forEach(child => {
+        place(child, col + 1, childTop);
+        childTop += subtreeHeight(child) + ROW_GAP;
+      });
+    }
+  }
+  place(proj, 0, 0);
+  return { positions, totalHeight: subtreeHeight(proj) };
+}
+function removeNode(proj, id) {
+  function rm(arr) {
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i].id === id) { arr.splice(i, 1); return true; }
+      if (arr[i].children && rm(arr[i].children)) return true;
+    }
+  }
+  rm([proj]);
+}
+
+function commitEdit() {
+  if (!activeEdit) return;
+  const { node, t, s, n } = activeEdit;
+  node.title = t.value.trim() || node.title;
+  node.subtitle = s.value.trim();
+  node.note = n.value.trim();
+  activeEdit = null;
+  saveState();
+  render();
+}
+
+document.addEventListener('mousedown', e => {
+  if (!activeEdit) return;
+  if (!activeEdit.el.contains(e.target)) commitEdit();
+});
+
+function startEdit(el, node) {
+  if (activeEdit && activeEdit.node === node) return;
+  if (activeEdit && activeEdit.node !== node) {
+    const prev = activeEdit;
+    prev.node.title = prev.t.value.trim() || prev.node.title;
+    prev.node.subtitle = prev.s.value.trim();
+    prev.node.note = prev.n.value.trim();
+    activeEdit = null;
+    saveState();
+  }
+
+  const titleEl = el.querySelector('.node-title');
+  const subEl   = el.querySelector('.node-subtitle');
+  const noteEl  = el.querySelector('.node-note');
+
+  titleEl.outerHTML = `<input class="node-title-input" value="${escA(node.title)}" placeholder="Title" maxlength="40">`;
+  subEl.outerHTML   = `<input class="node-subtitle-input" value="${escA(node.subtitle)}" placeholder="Subtitle..." maxlength="50">`;
+  noteEl.outerHTML  = `<textarea class="node-note-input" placeholder="Note..." rows="2">${esc(node.note)}</textarea>`;
+
+  const t = el.querySelector('.node-title-input');
+  const s = el.querySelector('.node-subtitle-input');
+  const n = el.querySelector('.node-note-input');
+
+  activeEdit = { node, el, t, s, n };
+  t.focus(); t.select();
+
+  t.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); s.focus(); }
+    if (e.key === 'Enter') { e.preventDefault(); s.focus(); }
+    if (e.key === 'Escape') commitEdit();
+  });
+  s.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); n.focus(); }
+    if (e.key === 'Enter') { e.preventDefault(); n.focus(); }
+    if (e.key === 'Escape') commitEdit();
+  });
+  n.addEventListener('keydown', e => {
+    if (e.key === 'Escape') commitEdit();
+    if (e.key === 'Tab') { e.preventDefault(); commitEdit(); }
+  });
+}
+
+// ── Todo Logic ────────────────────────────────────────────────────────────────
+function renderTodos() {
+  const list = document.getElementById('todo-list');
+  const remaining = document.getElementById('todo-remaining');
+  const toggleBtn = document.getElementById('todo-toggle-btn');
+  const countEl = toggleBtn.querySelector('.todo-count');
+
+  const todos = state.todos;
+  const pendingCount = todos.filter(t => !t.done).length;
+  countEl.textContent = pendingCount;
+  toggleBtn.classList.toggle('has-pending', pendingCount > 0);
+
+  const leftText = pendingCount === 0 && todos.length > 0
+    ? 'all done ✓'
+    : pendingCount === 1 ? '1 remaining' : pendingCount > 1 ? `${pendingCount} remaining` : '';
+  remaining.textContent = leftText;
+
+  if (todos.length === 0) {
+    list.innerHTML = '<div class="todo-empty">Nothing here yet</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  todos.forEach((todo, i) => {
+    const item = document.createElement('div');
+    item.className = 'todo-item' + (todo.done ? ' checked' : '');
+
+    const check = document.createElement('div');
+    check.className = 'todo-check';
+    check.title = todo.done ? 'Unmark' : 'Mark done';
+    check.textContent = todo.done ? '✓' : '';
+    check.onclick = () => { todo.done = !todo.done; saveState(); renderTodos(); };
+
+    const label = document.createElement('div');
+    label.className = 'todo-label';
+    label.contentEditable = 'true';
+    label.spellcheck = false;
+    label.textContent = todo.text;
+    label.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); label.blur(); }
+      if (e.key === 'Escape') { label.textContent = todo.text; label.blur(); }
+    });
+    label.addEventListener('blur', () => {
+      const newText = label.textContent.trim();
+      if (newText && newText !== todo.text) { todo.text = newText; saveState(); }
+    });
+
+    const del = document.createElement('button');
+    del.className = 'todo-del';
+    del.title = 'Remove';
+    del.textContent = '✕';
+    del.onclick = () => { state.todos.splice(i, 1); saveState(); renderTodos(); };
+
+    item.appendChild(check);
+    item.appendChild(label);
+    item.appendChild(del);
+    list.appendChild(item);
+  });
+}
+
+function addTodo(text) {
+  text = text.trim();
+  if (!text) return;
+  state.todos.push({ id: todoId(), text, done: false });
+  saveState();
+  renderTodos();
+}
+
+document.getElementById('todo-add-ok').onclick = () => {
+  const input = document.getElementById('todo-input');
+  addTodo(input.value);
+  input.value = '';
+  input.focus();
+};
+document.getElementById('todo-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const input = document.getElementById('todo-input');
+    addTodo(input.value);
+    input.value = '';
+  }
+});
+document.getElementById('todo-clear-done').onclick = () => {
+  state.todos = state.todos.filter(t => !t.done);
+  saveState(); renderTodos();
+};
+
+const todoPanel = document.getElementById('todo-panel');
+document.getElementById('todo-toggle-btn').onclick = () => {
+  todoPanel.classList.toggle('open');
+  if (todoPanel.classList.contains('open')) {
+    setTimeout(() => document.getElementById('todo-input').focus(), 230);
+  }
+};
+document.getElementById('todo-close-btn').onclick = () => {
+  todoPanel.classList.remove('open');
+};
+
+// ── Graph Render ──────────────────────────────────────────────────────────────
+function render() {
+  const nodesLayer = document.getElementById('nodes-layer');
+  const svg = document.getElementById('arrows');
+  const empty = document.getElementById('empty-state');
+  nodesLayer.innerHTML = '';
+  svg.innerHTML = '';
+  empty.style.display = state.projects.length ? 'none' : 'flex';
+
+  let allPositions = {}, curY = 0;
+  const projData = [];
+  state.projects.forEach((proj, pi) => {
+    const { positions, totalHeight } = layoutProject(proj, curY);
+    Object.assign(allPositions, positions);
+    projData.push({ proj, pi, totalHeight });
+    curY += totalHeight + PROJ_GAP;
+  });
+
+  lastPositions = allPositions;
+
+  const maxX = Math.max(400, ...Object.values(allPositions).map(p => p.x + p.w)) + OFFSET_X;
+  const maxY = OFFSET_Y + curY + OFFSET_Y;
+  document.getElementById('canvas').style.width  = maxX + 'px';
+  document.getElementById('canvas').style.height = maxY + 'px';
+  svg.setAttribute('width', maxX);
+  svg.setAttribute('height', maxY);
+
+  const markerDefs = projData.map((pd, pi) => {
+    const col = PALETTE[pi % PALETTE.length];
+    return `<marker id="ah${pi}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="${col.arrow}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>`;
+  }).join('');
+  svg.innerHTML = `<defs>${markerDefs}
+    <marker id="ah-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#3a3a36" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>`;
+
+  function renderNode(node, parentId, proj, pi) {
+    const pos = allPositions[node.id];
+    if (!pos) return;
+    const col = PALETTE[pi % PALETTE.length];
+
+    if (parentId) {
+      const ppos = allPositions[parentId];
+      const x1 = ppos.x + ppos.w, y1 = ppos.y + ppos.h / 2;
+      const x2 = pos.x,           y2 = pos.y + pos.h / 2;
+      const mx = x1 + (x2 - x1) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', node.done ? '#3a3a36' : col.arrow);
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('marker-end', node.done ? 'url(#ah-dim)' : `url(#ah${pi})`);
+      svg.appendChild(path);
+    }
+
+    const el = document.createElement('div');
+    el.className = 'node-el' + (!parentId ? ' root' : '') + (node.done ? ' done' : '') + (node.priority && !node.done ? ' priority' : '');
+    el.id = 'node-' + node.id;
+    el.style.left   = pos.x + 'px';
+    el.style.top    = pos.y + 'px';
+    el.style.width  = pos.w + 'px';
+    const isRoot = !parentId;
+    el.style.setProperty('--glow-color', col.glow);
+    el.style.setProperty('--bar-color', col.bar);
+    if (isRoot) {
+      el.style.borderTop    = `3px solid ${col.bar}`;
+      el.style.borderRight  = `0.5px solid ${col.border}`;
+      el.style.borderBottom = `0.5px solid ${col.border}`;
+      el.style.borderLeft   = `6px solid ${col.bar}`;
+    } else {
+      el.style.border     = `0.5px solid ${col.border}`;
+      el.style.borderLeft = `3px solid ${col.bar}`;
+    }
+    el.style.boxShadow = (node.priority && !node.done) ? '' :
+      (node.done ? 'none' :
+        (isRoot ? '' : `0 0 0 1px ${col.border}22, 0 4px 24px ${col.glow}`));
+
+    const flagClass = node.flag ? ' flag-' + node.flag : '';
+    const upToDate = !node.done && node.children && node.children.length > 0 && allDescendantsDone(node);
+    el.innerHTML = `
+      <div class="node-controls">
+        <div class="ctrl-btn done-btn${node.done ? ' active' : ''}" title="Done">✓</div>
+        <div class="ctrl-btn priority-btn${node.priority ? ' active' : ''}" title="Priority">★</div>
+        <div class="ctrl-btn flag-btn${flagClass}" title="Flag (now → tomorrow → urgent → clear)">⚑</div>
+        <div class="ctrl-btn del-btn" title="Delete">✕</div>
+      </div>
+      <div class="node-title">${esc(node.title)}</div>
+      <div class="node-subtitle">${esc(node.subtitle || '')}</div>
+      <div class="node-note">${esc(node.note || '')}</div>
+      ${node.flag && !node.done ? `<div class="node-flag flag-${node.flag}">${FLAG_LABELS[node.flag]}</div>` : ''}
+      ${upToDate ? '<div class="node-uptodate">✓ up to date</div>' : ''}
+    `;
+
+    el.querySelector('.done-btn').onclick = e => { e.stopPropagation(); node.done = !node.done; saveState(); render(); };
+    el.querySelector('.priority-btn').onclick = e => { e.stopPropagation(); node.priority = !node.priority; saveState(); render(); };
+    el.querySelector('.flag-btn').onclick = e => { e.stopPropagation(); node.flag = node.flag ? FLAG_CYCLE[node.flag] : 'now'; saveState(); render(); };
+    el.querySelector('.del-btn').onclick = e => {
+      e.stopPropagation();
+      if (activeEdit && activeEdit.node === node) activeEdit = null;
+      if (!parentId) state.projects.splice(pi, 1);
+      else removeNode(proj, node.id);
+      saveState(); render();
+    };
+    el.ondblclick = e => { e.stopPropagation(); startEdit(el, node); };
+
+    el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      if (e.target.closest('.node-controls')) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      e.stopPropagation();
+      const info = findParentInfo(node.id);
+      if (!info || info.arr.length < 2) return;
+      dragSt = {
+        nodeId: node.id, startX: e.clientX, startY: e.clientY,
+        active: false, dropIndex: null, ghost: null, indicator: null, srcEl: null,
+      };
+    });
+
+    nodesLayer.appendChild(el);
+
+    const btn = document.createElement('div');
+    btn.className = 'add-child-btn';
+    btn.style.left     = (pos.x + pos.w + 10) + 'px';
+    btn.style.top      = (pos.y + pos.h / 2 - 9) + 'px';
+    btn.style.position = 'absolute';
+    btn.innerHTML = '+';
+    btn.style.borderColor = col.border;
+    btn.onmousedown = e => e.stopPropagation();
+    btn.onclick = e => {
+      e.stopPropagation();
+      if (activeEdit) commitEdit();
+      const child = newNode('Update');
+      node.children.push(child);
+      saveState(); render();
+      setTimeout(() => { const ne = document.getElementById('node-' + child.id); if (ne) startEdit(ne, child); }, 30);
+    };
+    el.addEventListener('mouseenter', () => btn.style.opacity = '1');
+    el.addEventListener('mouseleave', () => { if (!btn.matches(':hover')) btn.style.opacity = '0'; });
+    btn.addEventListener('mouseleave', () => btn.style.opacity = '0');
+    nodesLayer.appendChild(btn);
+
+    (node.children || []).forEach(child => renderNode(child, node.id, proj, pi));
+  }
+
+  projData.forEach(({ proj, pi }) => renderNode(proj, null, proj, pi));
+  renderTodos();
+  renderMinimap();
+}
+
+function esc(s)  { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escA(s) { return String(s || '').replace(/"/g, '&quot;'); }
+
+document.getElementById('add-btn').onclick = () => {
+  if (activeEdit) commitEdit();
+  const p = newNode('New project');
+  state.projects.push(p);
+  saveState(); render();
+  setTimeout(() => { const e = document.getElementById('node-' + p.id); if (e) startEdit(e, p); }, 30);
+};
+
+window.addEventListener('resize', render);
+loadState();
+render();
+</script>
+</body>
+</html>
