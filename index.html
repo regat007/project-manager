@@ -200,6 +200,9 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
     <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
       ◈ Essentials <span class="todo-count">0</span>
     </button>
+    <button id="export-btn" class="tb-btn" title="Download a backup of all your data">↓ Export</button>
+    <button id="import-btn" class="tb-btn" title="Restore from a backup file">↑ Import</button>
+    <input id="import-file" type="file" accept=".json" style="display:none">
     <button id="add-btn" class="tb-btn">+ New project</button>
   </div>
   <div id="canvas-wrap">
@@ -853,6 +856,59 @@ document.getElementById('add-btn').onclick = () => {
   saveState(); render();
   setTimeout(() => { const e = document.getElementById('node-' + p.id); if (e) startEdit(e, p); }, 30);
 };
+
+// ── Export / Import ───────────────────────────────────────────────────────────
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportState() {
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
+}
+
+document.getElementById('export-btn').onclick = exportState;
+
+document.getElementById('import-btn').onclick = () => {
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-file').click();
+};
+
+document.getElementById('import-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Auto-backup current data before overwriting (skip if nothing to lose)
+  if (state.projects.length || state.todos.length) {
+    const date = new Date().toISOString().slice(0, 10);
+    downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
+  }
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const loaded = JSON.parse(ev.target.result);
+      if (!Array.isArray(loaded.projects)) throw new Error();
+      state.projects = loaded.projects;
+      state.todos = Array.isArray(loaded.todos) ? loaded.todos : [];
+      let mx = 0;
+      function walk(n) { mx = Math.max(mx, parseInt(n.id.slice(1)) || 0); (n.children || []).forEach(walk); }
+      state.projects.forEach(walk);
+      idC = mx + 1;
+      saveState();
+      render();
+    } catch (_) {
+      alert('Could not read this file. Make sure it\'s a valid Projects backup.');
+    }
+  };
+  reader.readAsText(file);
+});
 
 window.addEventListener('resize', render);
 loadState();
