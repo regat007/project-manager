@@ -176,6 +176,7 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 /* ── Flags ── */
 .ctrl-btn.flag-btn.flag-now      { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
 .ctrl-btn.flag-btn.flag-tomorrow { color: #f0a030; background: #221908; border-color: #6b480e; }
+.ctrl-btn.flag-btn.flag-week     { color: #a78bfa; background: #1a1030; border-color: #4a2a90; }
 .ctrl-btn.flag-btn.flag-urgent   { color: #e85050; background: #280e0e; border-color: #7a2020; }
 .node-flag {
   display: inline-flex; align-items: center; gap: 3px;
@@ -184,6 +185,7 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 }
 .node-flag.flag-now      { background: rgba(74,158,255,0.1);  color: #4a9eff; border: 0.5px solid rgba(74,158,255,0.22); }
 .node-flag.flag-tomorrow { background: rgba(240,160,48,0.1);  color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
+.node-flag.flag-week     { background: rgba(167,139,250,0.1); color: #a78bfa; border: 0.5px solid rgba(167,139,250,0.22); }
 .node-flag.flag-urgent   { background: rgba(232,80,80,0.1);   color: #e85050; border: 0.5px solid rgba(232,80,80,0.22); }
 
 /* ── Up-to-date badge ── */
@@ -251,8 +253,8 @@ const PALETTE = [
   { border: '#5f5e5a', glow: 'rgba(95,94,90,0.22)',    arrow: '#888780', bar: '#b4b2a9' },
 ];
 
-const FLAG_LABELS = { now: '● Now', tomorrow: '● Tomorrow', urgent: '● Urgent' };
-const FLAG_CYCLE  = { now: 'tomorrow', tomorrow: 'urgent', urgent: null };
+const FLAG_LABELS = { now: '● Now', tomorrow: '● Tomorrow', week: '● This week', urgent: '● Urgent' };
+const FLAG_CYCLE  = { now: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: null };
 
 let state = { projects: [], todos: [] };
 let idC = 1;
