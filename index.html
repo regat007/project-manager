@@ -204,6 +204,10 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .node-health.health-drifting { background: rgba(240,160,48,0.10); color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
 .node-health.health-stalled  { background: rgba(136,135,128,0.10); color: #888780; border: 0.5px solid rgba(136,135,128,0.22); }
 .node-health.health-complete { background: rgba(93,202,165,0.06); color: #5dcaa5; border: 0.5px solid rgba(93,202,165,0.14); opacity: 0.55; }
+
+/* ── Dependency drawing mode ── */
+body.dep-drawing .node-el { cursor: crosshair !important; }
+body.dep-drawing .node-el:hover { outline: 1px dashed rgba(136,135,128,0.45); outline-offset: 3px; }
 </style>
 </head>
 <body>
@@ -267,12 +271,13 @@ const PALETTE = [
   { border: '#5f5e5a', glow: 'rgba(95,94,90,0.22)',    arrow: '#888780', bar: '#b4b2a9' },
 ];
 
-const FLAG_LABELS = { now: '● Now', tomorrow: '● Tomorrow', week: '● This week', urgent: '● Urgent' };
-const FLAG_CYCLE  = { now: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: null };
+const FLAG_LABELS = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● Urgent' };
+const FLAG_CYCLE  = { today: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: null };
 
-let state = { projects: [], todos: [] };
+let state = { projects: [], todos: [], dependencies: [] };
 let idC = 1;
 let activeEdit = null;
+let altDragSt = null;
 let lastPositions = {};
 
 const canvasWrap = document.getElementById('canvas-wrap');
@@ -410,6 +415,28 @@ function indicatorLineY(arr, insertIdx) {
 
 // ── Unified mousemove / mouseup ───────────────────────────────────────────────
 document.addEventListener('mousemove', e => {
+  if (altDragSt) {
+    altDragSt.active = true;
+    const svg = document.getElementById('arrows');
+    if (!altDragSt.previewPath) {
+      altDragSt.previewPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      altDragSt.previewPath.setAttribute('fill', 'none');
+      altDragSt.previewPath.setAttribute('stroke', '#888780');
+      altDragSt.previewPath.setAttribute('stroke-width', '1.2');
+      altDragSt.previewPath.setAttribute('stroke-dasharray', '6,4');
+      altDragSt.previewPath.setAttribute('opacity', '0.45');
+      altDragSt.previewPath.style.pointerEvents = 'none';
+      svg.appendChild(altDragSt.previewPath);
+    }
+    const sp = lastPositions[altDragSt.fromId];
+    if (sp) {
+      const cp = screenToCanvas(e.clientX, e.clientY);
+      const x1 = sp.x + sp.w, y1 = sp.y + sp.h / 2;
+      const mx = (x1 + cp.x) / 2;
+      altDragSt.previewPath.setAttribute('d', `M${x1} ${y1} C${mx} ${y1} ${mx} ${cp.y} ${cp.x} ${cp.y}`);
+    }
+    return;
+  }
   if (!dragSt) return;
   const dx = e.clientX - dragSt.startX, dy = e.clientY - dragSt.startY;
   if (!dragSt.active && Math.sqrt(dx * dx + dy * dy) < 6) return;
@@ -455,7 +482,25 @@ document.addEventListener('mousemove', e => {
   }
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('mouseup', e => {
+  if (altDragSt) {
+    document.body.classList.remove('dep-drawing');
+    if (altDragSt.previewPath) altDragSt.previewPath.remove();
+    if (altDragSt.active) {
+      const cp = screenToCanvas(e.clientX, e.clientY);
+      const targetId = getNodeAtPoint(cp.x, cp.y);
+      if (targetId && targetId !== altDragSt.fromId) {
+        const from = altDragSt.fromId, to = targetId;
+        if (!state.dependencies) state.dependencies = [];
+        const idx = state.dependencies.findIndex(d => d.from === from && d.to === to);
+        if (idx >= 0) state.dependencies.splice(idx, 1);
+        else state.dependencies.push({ from, to });
+        saveState(); render();
+      }
+    }
+    altDragSt = null;
+    return;
+  }
   if (dragSt) {
     document.body.style.cursor = '';
     if (dragSt.active) {
@@ -494,6 +539,7 @@ function loadState() {
       const loaded = JSON.parse(s);
       state = loaded;
       if (!Array.isArray(state.todos)) state.todos = [];
+      if (!Array.isArray(state.dependencies)) state.dependencies = [];
       let mx = 0;
       function walk(n) {
         mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
@@ -735,6 +781,26 @@ document.getElementById('todo-close-btn').onclick = () => {
   todoPanel.classList.remove('open');
 };
 
+// ── Dependency helpers ────────────────────────────────────────────────────────
+function findProjectIndex(nodeId) {
+  function search(node) {
+    if (node.id === nodeId) return true;
+    for (const c of (node.children || [])) if (search(c)) return true;
+    return false;
+  }
+  for (let i = 0; i < state.projects.length; i++) {
+    if (search(state.projects[i])) return i;
+  }
+  return 0;
+}
+
+function getNodeAtPoint(x, y) {
+  for (const [id, pos] of Object.entries(lastPositions)) {
+    if (x >= pos.x && x <= pos.x + pos.w && y >= pos.y && y <= pos.y + pos.h) return id;
+  }
+  return null;
+}
+
 // ── Graph Render ──────────────────────────────────────────────────────────────
 function render() {
   const nodesLayer = document.getElementById('nodes-layer');
@@ -766,6 +832,9 @@ function render() {
     const col = PALETTE[pi % PALETTE.length];
     return `<marker id="ah${pi}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="${col.arrow}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="dep${pi}" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M1 1 L11 5 L1 9 Z" fill="#1a1a18" stroke="${col.arrow}" stroke-width="1.4" stroke-linejoin="round"/>
     </marker>`;
   }).join('');
   svg.innerHTML = `<defs>${markerDefs}
@@ -852,6 +921,7 @@ function render() {
     el.querySelector('.del-btn').onclick = e => {
       e.stopPropagation();
       if (activeEdit && activeEdit.node === node) activeEdit = null;
+      state.dependencies = (state.dependencies || []).filter(d => d.from !== node.id && d.to !== node.id);
       if (!parentId) state.projects.splice(pi, 1);
       else removeNode(proj, node.id);
       saveState(); render();
@@ -863,6 +933,12 @@ function render() {
       if (e.target.closest('.node-controls')) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       e.stopPropagation();
+      if (e.altKey) {
+        e.preventDefault();
+        document.body.classList.add('dep-drawing');
+        altDragSt = { fromId: node.id, active: false, previewPath: null };
+        return;
+      }
       const info = findParentInfo(node.id);
       if (!info || info.arr.length < 2) return;
       dragSt = {
@@ -898,6 +974,54 @@ function render() {
   }
 
   projData.forEach(({ proj, pi }) => renderNode(proj, null, proj, pi));
+
+  // Draw dependency lines
+  (state.dependencies || []).forEach(({ from, to }) => {
+    const sp = allPositions[from];
+    const tp = allPositions[to];
+    if (!sp || !tp) return;
+
+    const pi = findProjectIndex(from);
+    const col = PALETTE[pi % PALETTE.length];
+
+    let x1, y1, x2, y2, cx1, cy1, cx2, cy2;
+    const dx = (tp.x + tp.w / 2) - (sp.x + sp.w / 2);
+
+    if (Math.abs(dx) > NODE_W / 2) {
+      if (dx > 0) {
+        x1 = sp.x + sp.w; y1 = sp.y + sp.h / 2;
+        x2 = tp.x;        y2 = tp.y + tp.h / 2;
+      } else {
+        x1 = sp.x;        y1 = sp.y + sp.h / 2;
+        x2 = tp.x + tp.w; y2 = tp.y + tp.h / 2;
+      }
+      const mx = (x1 + x2) / 2;
+      cx1 = mx; cy1 = y1; cx2 = mx; cy2 = y2;
+    } else {
+      // Same column — arc out to the right
+      if (tp.y >= sp.y) {
+        x1 = sp.x + sp.w / 2; y1 = sp.y + sp.h;
+        x2 = tp.x + tp.w / 2; y2 = tp.y;
+      } else {
+        x1 = sp.x + sp.w / 2; y1 = sp.y;
+        x2 = tp.x + tp.w / 2; y2 = tp.y + tp.h;
+      }
+      const arc = NODE_W * 0.9;
+      cx1 = x1 + arc; cy1 = y1;
+      cx2 = x2 + arc; cy2 = y2;
+    }
+
+    const dpath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    dpath.setAttribute('d', `M${x1} ${y1} C${cx1} ${cy1} ${cx2} ${cy2} ${x2} ${y2}`);
+    dpath.setAttribute('fill', 'none');
+    dpath.setAttribute('stroke', col.arrow);
+    dpath.setAttribute('stroke-width', '1.2');
+    dpath.setAttribute('stroke-dasharray', '6,4');
+    dpath.setAttribute('opacity', '0.65');
+    dpath.setAttribute('marker-end', `url(#dep${pi})`);
+    svg.appendChild(dpath);
+  });
+
   renderTodos();
   renderMinimap();
 }
@@ -926,7 +1050,7 @@ function downloadJSON(data, filename) {
 
 function exportState() {
   const date = new Date().toISOString().slice(0, 10);
-  downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
+  downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos, dependencies: state.dependencies || [] }, `projects-backup-${date}.json`);
 }
 
 document.getElementById('export-btn').onclick = exportState;
@@ -943,7 +1067,7 @@ document.getElementById('import-file').addEventListener('change', e => {
   // Auto-backup current data before overwriting (skip if nothing to lose)
   if (state.projects.length || state.todos.length) {
     const date = new Date().toISOString().slice(0, 10);
-    downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
+    downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos, dependencies: state.dependencies || [] }, `projects-backup-${date}.json`);
   }
 
   const reader = new FileReader();
@@ -953,6 +1077,7 @@ document.getElementById('import-file').addEventListener('change', e => {
       if (!Array.isArray(loaded.projects)) throw new Error();
       state.projects = loaded.projects;
       state.todos = Array.isArray(loaded.todos) ? loaded.todos : [];
+      state.dependencies = Array.isArray(loaded.dependencies) ? loaded.dependencies : [];
       let mx = 0;
       function walk(n) {
         mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
