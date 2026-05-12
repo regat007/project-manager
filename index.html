@@ -174,7 +174,7 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .todo-empty { padding: 32px 14px; text-align: center; color: #3a3a36; font-size: 12px; }
 
 /* ── Flags ── */
-.ctrl-btn.flag-btn.flag-now      { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
+.ctrl-btn.flag-btn.flag-today    { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
 .ctrl-btn.flag-btn.flag-tomorrow { color: #f0a030; background: #221908; border-color: #6b480e; }
 .ctrl-btn.flag-btn.flag-week     { color: #a78bfa; background: #1a1030; border-color: #4a2a90; }
 .ctrl-btn.flag-btn.flag-urgent   { color: #e85050; background: #280e0e; border-color: #7a2020; }
@@ -183,7 +183,7 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
   font-size: 10px; margin-top: 5px; padding: 1px 6px 2px;
   border-radius: 3px; font-weight: 500; letter-spacing: 0.01em;
 }
-.node-flag.flag-now      { background: rgba(74,158,255,0.1);  color: #4a9eff; border: 0.5px solid rgba(74,158,255,0.22); }
+.node-flag.flag-today    { background: rgba(74,158,255,0.1);  color: #4a9eff; border: 0.5px solid rgba(74,158,255,0.22); }
 .node-flag.flag-tomorrow { background: rgba(240,160,48,0.1);  color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
 .node-flag.flag-week     { background: rgba(167,139,250,0.1); color: #a78bfa; border: 0.5px solid rgba(167,139,250,0.22); }
 .node-flag.flag-urgent   { background: rgba(232,80,80,0.1);   color: #e85050; border: 0.5px solid rgba(232,80,80,0.22); }
@@ -917,7 +917,7 @@ function render() {
       render();
     };
     el.querySelector('.priority-btn').onclick = e => { e.stopPropagation(); node.priority = !node.priority; saveState(); render(); };
-    el.querySelector('.flag-btn').onclick = e => { e.stopPropagation(); node.flag = node.flag ? FLAG_CYCLE[node.flag] : 'now'; saveState(); render(); };
+    el.querySelector('.flag-btn').onclick = e => { e.stopPropagation(); node.flag = node.flag ? FLAG_CYCLE[node.flag] : 'today'; saveState(); render(); };
     el.querySelector('.del-btn').onclick = e => {
       e.stopPropagation();
       if (activeEdit && activeEdit.node === node) activeEdit = null;
