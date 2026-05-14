@@ -264,6 +264,9 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 }
 .sv-btn.done-btn:hover { background: #162816; color: #5dcaa5; border-color: #2a4a2a; }
 .sv-btn.clear-btn:hover { background: #3a3a36; color: #c2c0b6; }
+.sv-task[draggable] { cursor: grab; }
+.sv-task.sv-dragging { opacity: 0.35; cursor: grabbing; }
+.sv-col-body.sv-drag-over { background: rgba(127,119,221,0.07); outline: 1.5px dashed rgba(127,119,221,0.4); outline-offset: -3px; border-radius: 4px; }
 
 /* ── Primary new-project button ── */
 #add-btn { background: #3d3476; border-color: #7f77dd; color: #d0ccff; padding: 7px 20px; font-size: 13px; font-weight: 600; }
@@ -1006,11 +1009,11 @@ function renderScheduleView() {
               <span class="sv-col-label" style="color:${sec.color}">${sec.label}</span>
               <span class="sv-col-count" style="background:${sec.border}; color:${sec.color}">${tasks.length}</span>
             </div>
-            <div class="sv-col-body">
+            <div class="sv-col-body" data-flag="${sec.key}">
               ${tasks.length === 0
                 ? '<div class="sv-empty">Nothing here</div>'
                 : tasks.map(({ node, projTitle, projCol }) => `
-                  <div class="sv-task" style="--accent:${projCol.bar}" data-id="${node.id}" title="View on map">
+                  <div class="sv-task" style="--accent:${projCol.bar}" data-id="${node.id}" draggable="true" title="View on map">
                     <div class="sv-task-title">${esc(node.title)}</div>
                     ${node.subtitle ? `<div class="sv-task-sub">${esc(node.subtitle)}</div>` : ''}
                     <div class="sv-task-footer">
@@ -1047,6 +1050,34 @@ function renderScheduleView() {
       if (e.target.closest('.sv-btn')) return;
       navigateToNode(card.dataset.id);
     };
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+      requestAnimationFrame(() => card.classList.add('sv-dragging'));
+    });
+    card.addEventListener('dragend', () => card.classList.remove('sv-dragging'));
+  });
+
+  container.querySelectorAll('.sv-col-body').forEach(body => {
+    body.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      body.classList.add('sv-drag-over');
+    });
+    body.addEventListener('dragleave', e => {
+      if (!body.contains(e.relatedTarget)) body.classList.remove('sv-drag-over');
+    });
+    body.addEventListener('drop', e => {
+      e.preventDefault();
+      body.classList.remove('sv-drag-over');
+      const node = findNodeById(e.dataTransfer.getData('text/plain'));
+      if (node && node.flag !== body.dataset.flag) {
+        node.flag = body.dataset.flag;
+        saveState();
+        render();
+        renderScheduleView();
+      }
+    });
   });
 }
 
