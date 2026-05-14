@@ -1287,7 +1287,7 @@ function renderMomentumView() {
             <span class="mv-proj-heading-count">${tasks.length} completed</span>
           </div>
           <div>
-            ${tasks.map(({ node, col: c }) => `
+            ${tasks.map(({ node, projCol: c }) => `
               <div class="mv-task">
                 <div class="mv-check-ring" style="border-color:${c.bar}; color:${c.bar}">✓</div>
                 <div class="mv-task-info">
