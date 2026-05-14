@@ -8,8 +8,9 @@
 #app { display: flex; flex-direction: column; height: 100vh; min-height: 520px; background: #1a1a18; color: #c2c0b6; font-family: var(--font-sans, sans-serif); }
 #toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 0.5px solid #3a3a36; flex-shrink: 0; }
 #toolbar h1 { font-size: 13px; font-weight: 500; color: #c2c0b6; flex: 1; }
-.tb-btn { background: #2c2c2a; border: 0.5px solid #4a4a46; color: #c2c0b6; font-size: 12px; padding: 5px 14px; border-radius: 6px; cursor: pointer; }
+.tb-btn { background: #2c2c2a; border: 0.5px solid #4a4a46; color: #c2c0b6; font-size: 12px; padding: 5px 14px; border-radius: 6px; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
 .tb-btn:hover { background: #3a3a36; }
+.tb-btn.view-active { background: #2e2b42; border-color: #534ab7; color: #a09ae8; }
 #todo-toggle-btn { display: flex; align-items: center; gap: 5px; }
 #todo-toggle-btn .todo-count { background: #3a3a36; border-radius: 8px; font-size: 10px; padding: 1px 5px; color: #888780; min-width: 16px; text-align: center; }
 #todo-toggle-btn.has-pending .todo-count { background: #534ab7; color: #c5c0f0; }
@@ -174,19 +175,21 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .todo-empty { padding: 32px 14px; text-align: center; color: #3a3a36; font-size: 12px; }
 
 /* ── Flags ── */
-.ctrl-btn.flag-btn.flag-today    { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
-.ctrl-btn.flag-btn.flag-tomorrow { color: #f0a030; background: #221908; border-color: #6b480e; }
-.ctrl-btn.flag-btn.flag-week     { color: #a78bfa; background: #1a1030; border-color: #4a2a90; }
-.ctrl-btn.flag-btn.flag-urgent   { color: #e85050; background: #280e0e; border-color: #7a2020; }
+.ctrl-btn.flag-btn.flag-today      { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
+.ctrl-btn.flag-btn.flag-tomorrow   { color: #f0a030; background: #221908; border-color: #6b480e; }
+.ctrl-btn.flag-btn.flag-week       { color: #a78bfa; background: #1a1030; border-color: #4a2a90; }
+.ctrl-btn.flag-btn.flag-urgent     { color: #e85050; background: #280e0e; border-color: #7a2020; }
+.ctrl-btn.flag-btn.flag-non-urgent { color: #888780; background: #1e1e1c; border-color: #4a4a46; }
 .node-flag {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 10px; margin-top: 5px; padding: 1px 6px 2px;
   border-radius: 3px; font-weight: 500; letter-spacing: 0.01em;
 }
-.node-flag.flag-today    { background: rgba(74,158,255,0.1);  color: #4a9eff; border: 0.5px solid rgba(74,158,255,0.22); }
-.node-flag.flag-tomorrow { background: rgba(240,160,48,0.1);  color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
-.node-flag.flag-week     { background: rgba(167,139,250,0.1); color: #a78bfa; border: 0.5px solid rgba(167,139,250,0.22); }
-.node-flag.flag-urgent   { background: rgba(232,80,80,0.1);   color: #e85050; border: 0.5px solid rgba(232,80,80,0.22); }
+.node-flag.flag-today      { background: rgba(74,158,255,0.1);   color: #4a9eff;  border: 0.5px solid rgba(74,158,255,0.22); }
+.node-flag.flag-tomorrow   { background: rgba(240,160,48,0.1);   color: #f0a030;  border: 0.5px solid rgba(240,160,48,0.22); }
+.node-flag.flag-week       { background: rgba(167,139,250,0.1);  color: #a78bfa;  border: 0.5px solid rgba(167,139,250,0.22); }
+.node-flag.flag-urgent     { background: rgba(232,80,80,0.1);    color: #e85050;  border: 0.5px solid rgba(232,80,80,0.22); }
+.node-flag.flag-non-urgent { background: rgba(136,135,128,0.08); color: #888780;  border: 0.5px solid rgba(136,135,128,0.2); }
 
 /* ── Up-to-date badge ── */
 .node-uptodate {
@@ -200,20 +203,140 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
   font-size: 10px; margin-top: 5px; padding: 2px 7px 2px;
   border-radius: 3px; font-weight: 500; letter-spacing: 0.01em;
 }
-.node-health.health-active   { background: rgba(93,202,165,0.12); color: #5dcaa5; border: 0.5px solid rgba(93,202,165,0.25); }
-.node-health.health-drifting { background: rgba(240,160,48,0.10); color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
+.node-health.health-active   { background: rgba(93,202,165,0.12);  color: #5dcaa5; border: 0.5px solid rgba(93,202,165,0.25); }
+.node-health.health-drifting { background: rgba(240,160,48,0.10);  color: #f0a030; border: 0.5px solid rgba(240,160,48,0.22); }
 .node-health.health-stalled  { background: rgba(136,135,128,0.10); color: #888780; border: 0.5px solid rgba(136,135,128,0.22); }
-.node-health.health-complete { background: rgba(93,202,165,0.06); color: #5dcaa5; border: 0.5px solid rgba(93,202,165,0.14); opacity: 0.55; }
+.node-health.health-complete { background: rgba(93,202,165,0.06);  color: #5dcaa5; border: 0.5px solid rgba(93,202,165,0.14); opacity: 0.55; }
 
-/* ── Dependency drawing mode ── */
-body.dep-drawing .node-el { cursor: crosshair !important; }
-body.dep-drawing .node-el:hover { outline: 1px dashed rgba(136,135,128,0.45); outline-offset: 3px; }
+/* ── Schedule View ── */
+#schedule-view {
+  display: none; flex: 1; flex-direction: column;
+  background: #1a1a18; overflow: hidden;
+}
+#schedule-view.visible { display: flex; }
+.sv-header {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 22px 28px 16px;
+  border-bottom: 0.5px solid #2a2a28;
+  flex-shrink: 0;
+}
+.sv-title { font-size: 18px; font-weight: 700; color: #f5f2e8; letter-spacing: 0.02em; }
+.sv-meta { font-size: 12px; color: #5f5e5a; }
+.sv-columns { display: flex; flex: 1; overflow: hidden; }
+.sv-col {
+  flex: 1; display: flex; flex-direction: column;
+  border-right: 0.5px solid #222220;
+  min-width: 0; overflow: hidden;
+}
+.sv-col:last-child { border-right: none; }
+.sv-col-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px 9px;
+  border-bottom-width: 2px; border-bottom-style: solid;
+  flex-shrink: 0;
+}
+.sv-col-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.sv-col-count { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; min-width: 18px; text-align: center; }
+.sv-col-body {
+  flex: 1; overflow-y: auto; padding: 10px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.sv-col-body::-webkit-scrollbar { width: 3px; }
+.sv-col-body::-webkit-scrollbar-track { background: transparent; }
+.sv-col-body::-webkit-scrollbar-thumb { background: #2e2e2c; border-radius: 2px; }
+.sv-empty { color: #333331; font-size: 11px; text-align: center; padding: 28px 8px; font-style: italic; }
+.sv-task {
+  background: #252523; border: 0.5px solid #333331;
+  border-left: 3px solid var(--accent, #888780);
+  border-radius: 7px; padding: 9px 11px 8px;
+  transition: background .1s;
+}
+.sv-task:hover { background: #2c2c2a; }
+.sv-task-title { font-size: 12px; font-weight: 500; color: #e0ddd4; line-height: 1.4; }
+.sv-task-sub { font-size: 10px; color: #5f5e5a; margin-top: 2px; }
+.sv-task-footer { display: flex; align-items: center; gap: 5px; margin-top: 7px; }
+.sv-proj-name { font-size: 10px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.7; }
+.sv-btn {
+  width: 18px; height: 18px; border-radius: 4px;
+  border: 0.5px solid #3a3a36; background: #2a2a28;
+  color: #5f5e5a; font-size: 9px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sv-btn.done-btn:hover { background: #162816; color: #5dcaa5; border-color: #2a4a2a; }
+.sv-btn.clear-btn:hover { background: #3a3a36; color: #c2c0b6; }
+
+/* ── Momentum View ── */
+#momentum-view {
+  display: none; flex: 1; flex-direction: column;
+  background: #1a1a18; overflow: hidden;
+}
+#momentum-view.visible { display: flex; }
+.mv-header {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 22px 28px 16px;
+  border-bottom: 0.5px solid #2a2a28;
+  flex-shrink: 0;
+}
+.mv-title { font-size: 18px; font-weight: 700; color: #f5f2e8; letter-spacing: 0.02em; }
+.mv-meta { font-size: 12px; color: #5f5e5a; }
+.mv-body { display: flex; flex: 1; overflow: hidden; }
+.mv-sidebar {
+  width: 256px; flex-shrink: 0;
+  border-right: 0.5px solid #2a2a28;
+  padding: 22px 20px;
+  display: flex; flex-direction: column; gap: 0;
+  overflow-y: auto;
+}
+.mv-spark-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #4a4a46; margin-bottom: 12px; }
+.mv-spark-svg { width: 100%; height: 88px; display: block; }
+.mv-spark-days { display: flex; justify-content: space-between; margin-top: 5px; margin-bottom: 20px; }
+.mv-spark-days span { font-size: 9px; color: #3a3a36; }
+.mv-spark-days span.is-today { color: #5f5e5a; }
+.mv-stats { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 0.5px solid #2a2a28; }
+.mv-stat { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #5f5e5a; }
+.mv-stat-val { color: #c2c0b6; font-weight: 500; }
+.mv-list-area {
+  flex: 1; overflow-y: auto; padding: 20px 26px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.mv-list-area::-webkit-scrollbar { width: 4px; }
+.mv-list-area::-webkit-scrollbar-track { background: transparent; }
+.mv-list-area::-webkit-scrollbar-thumb { background: #3a3a36; border-radius: 2px; }
+.mv-proj-group { display: flex; flex-direction: column; gap: 5px; }
+.mv-proj-heading {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 0 8px 12px;
+  border-left-width: 3px; border-left-style: solid;
+  border-bottom: 0.5px solid #2a2a28;
+  margin-bottom: 2px;
+}
+.mv-proj-heading-name { font-size: 11px; font-weight: 600; }
+.mv-proj-heading-count { margin-left: auto; font-size: 10px; font-weight: 400; color: #4a4a46; }
+.mv-task {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 6px;
+  background: #252523; border: 0.5px solid #2e2e2c;
+  transition: background .1s;
+}
+.mv-task:hover { background: #2c2c2a; }
+.mv-check-ring {
+  width: 15px; height: 15px; border-radius: 50%;
+  border: 1.5px solid; font-size: 8px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mv-task-info { flex: 1; min-width: 0; }
+.mv-task-name { font-size: 12px; color: #c2c0b6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mv-task-sub { font-size: 10px; color: #5f5e5a; margin-top: 1px; }
+.mv-task-age { font-size: 10px; color: #4a4a46; white-space: nowrap; flex-shrink: 0; }
+.mv-empty { color: #4a4a46; font-size: 13px; text-align: center; padding: 60px 24px; line-height: 2.2; }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="toolbar">
     <h1>Projects</h1>
+    <button id="schedule-btn" class="tb-btn" title="View all flagged tasks by date">⊡ Schedule</button>
+    <button id="momentum-btn" class="tb-btn" title="View recent progress">◎ Momentum</button>
     <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
       ◈ Essentials <span class="todo-count">0</span>
     </button>
@@ -229,6 +352,8 @@ body.dep-drawing .node-el:hover { outline: 1px dashed rgba(136,135,128,0.45); ou
       <div id="empty-state"><span style="font-size:28px">◻</span><div>No projects yet — click <strong style="color:#888780">+ New project</strong> to start</div></div>
     </div>
   </div>
+  <div id="schedule-view"></div>
+  <div id="momentum-view"></div>
 </div>
 
 <!-- Minimap -->
@@ -271,68 +396,66 @@ const PALETTE = [
   { border: '#5f5e5a', glow: 'rgba(95,94,90,0.22)',    arrow: '#888780', bar: '#b4b2a9' },
 ];
 
-const FLAG_LABELS = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● Urgent' };
-const FLAG_CYCLE  = { today: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: null };
+const FLAG_LABELS = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● Urgent', 'non-urgent': '● Non-urgent' };
+const FLAG_CYCLE  = { today: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: 'non-urgent', 'non-urgent': null };
 
-let state = { projects: [], todos: [], dependencies: [] };
+let state = { projects: [], todos: [] };
 let idC = 1;
 let activeEdit = null;
-let altDragSt = null;
 let lastPositions = {};
+let currentView = 'graph'; // 'graph' | 'schedule' | 'momentum'
 
 const canvasWrap = document.getElementById('canvas-wrap');
 
+// ── View switching ────────────────────────────────────────────────────────────
+function showView(view) {
+  if (currentView === view) view = 'graph';
+  currentView = view;
+
+  canvasWrap.style.display         = view === 'graph'    ? '' : 'none';
+  document.getElementById('schedule-view').classList.toggle('visible', view === 'schedule');
+  document.getElementById('momentum-view').classList.toggle('visible', view === 'momentum');
+  document.getElementById('minimap').style.display = view === 'graph' ? '' : 'none';
+
+  document.getElementById('schedule-btn').classList.toggle('view-active', view === 'schedule');
+  document.getElementById('momentum-btn').classList.toggle('view-active', view === 'momentum');
+
+  if (view === 'schedule') renderScheduleView();
+  if (view === 'momentum') renderMomentumView();
+}
+
 // ── Minimap ───────────────────────────────────────────────────────────────────
 function renderMinimap() {
+  if (currentView !== 'graph') return;
   const mc = document.getElementById('minimap-canvas');
   const mv = document.getElementById('minimap-viewport');
   const canvasEl = document.getElementById('canvas');
   const cW = Math.max(400, parseFloat(canvasEl.style.width)  || canvasWrap.clientWidth);
   const cH = Math.max(300, parseFloat(canvasEl.style.height) || canvasWrap.clientHeight);
+  const s  = Math.min(MINI_W / cW, MINI_H / cH);
 
-  const s = Math.min(MINI_W / cW, MINI_H / cH);
-
-  mc.width = MINI_W;
-  mc.height = MINI_H;
   const ctx = mc.getContext('2d');
   ctx.clearRect(0, 0, MINI_W, MINI_H);
-
-  state.projects.forEach((proj, pi) => {
-    const col = PALETTE[pi % PALETTE.length];
-    function drawNode(node) {
-      const pos = lastPositions[node.id];
-      if (pos) {
-        ctx.fillStyle = col.bar;
-        ctx.globalAlpha = node.done ? 0.18 : 0.55;
-        const rx = pos.x * s, ry = pos.y * s;
-        const rw = Math.max(2, pos.w * s), rh = Math.max(2, pos.h * s);
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 1);
-        else ctx.rect(rx, ry, rw, rh);
-        ctx.fill();
-      }
-      (node.children || []).forEach(drawNode);
-    }
-    drawNode(proj);
-  });
-  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#252523';
+  for (const pos of Object.values(lastPositions)) {
+    ctx.fillRect(pos.x * s, pos.y * s, pos.w * s, Math.max(2, pos.h * s));
+  }
 
   const sL = canvasWrap.scrollLeft;
   const sT = canvasWrap.scrollTop;
-  mv.style.left   = Math.max(0, sL * s) + 'px';
-  mv.style.top    = Math.max(0, sT * s) + 'px';
+  mv.style.left   = (sL * s) + 'px';
+  mv.style.top    = (sT * s) + 'px';
   mv.style.width  = Math.min(MINI_W, canvasWrap.clientWidth  * s) + 'px';
   mv.style.height = Math.min(MINI_H, canvasWrap.clientHeight * s) + 'px';
 }
-
 canvasWrap.addEventListener('scroll', renderMinimap);
 
 document.getElementById('minimap').addEventListener('mousedown', e => {
+  const rect = document.getElementById('minimap').getBoundingClientRect();
   const canvasEl = document.getElementById('canvas');
   const cW = Math.max(400, parseFloat(canvasEl.style.width)  || canvasWrap.clientWidth);
   const cH = Math.max(300, parseFloat(canvasEl.style.height) || canvasWrap.clientHeight);
-  const s = Math.min(MINI_W / cW, MINI_H / cH);
-  const rect = document.getElementById('minimap-canvas').getBoundingClientRect();
+  const s  = Math.min(MINI_W / cW, MINI_H / cH);
   canvasWrap.scrollLeft = (e.clientX - rect.left)  / s - canvasWrap.clientWidth  / 2;
   canvasWrap.scrollTop  = (e.clientY - rect.top)   / s - canvasWrap.clientHeight / 2;
 });
@@ -350,6 +473,7 @@ function screenToCanvas(cx, cy) {
 document.addEventListener('keydown', e => {
   if (activeEdit) return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (currentView !== 'graph') return;
   const STEP = 80;
   switch (e.key) {
     case 'ArrowUp':    canvasWrap.scrollBy(0, -STEP); e.preventDefault(); break;
@@ -373,70 +497,30 @@ function findParentInfo(nodeId) {
     }
     return null;
   }
-  for (const p of state.projects) { const r = search(p); if (r) return r; }
+  for (const p of state.projects) {
+    const r = search(p);
+    if (r) return r;
+  }
   return null;
 }
 
 function computeDropIndex(arr, canvasY) {
-  let best = 0, bestDist = Infinity;
-  for (let i = 0; i <= arr.length; i++) {
-    let lineY;
-    if (i === 0) {
-      const p = arr[0] ? lastPositions[arr[0].id] : null;
-      lineY = p ? p.y - ROW_GAP / 2 : null;
-    } else if (i === arr.length) {
-      const last = arr[arr.length - 1] ? lastPositions[arr[arr.length - 1].id] : null;
-      lineY = last ? last.y + last.h + ROW_GAP / 2 : null;
-    } else {
-      const prev = arr[i - 1] ? lastPositions[arr[i - 1].id] : null;
-      const next = arr[i] ? lastPositions[arr[i].id] : null;
-      lineY = (prev && next) ? (prev.y + prev.h + next.y) / 2 : null;
-    }
-    if (lineY == null) continue;
-    const d = Math.abs(canvasY - lineY);
-    if (d < bestDist) { bestDist = d; best = i; }
+  for (let i = 0; i < arr.length; i++) {
+    const pos = lastPositions[arr[i].id];
+    if (!pos) continue;
+    if (canvasY < pos.y + pos.h / 2) return i;
   }
-  return best;
+  return arr.length;
 }
 
 function indicatorLineY(arr, insertIdx) {
-  if (insertIdx === 0) {
-    const p = arr[0] ? lastPositions[arr[0].id] : null;
-    return p ? p.y - ROW_GAP / 2 : null;
-  }
-  if (insertIdx >= arr.length) {
-    const last = arr[arr.length - 1] ? lastPositions[arr[arr.length - 1].id] : null;
-    return last ? last.y + last.h + ROW_GAP / 2 : null;
-  }
   const prev = arr[insertIdx - 1] ? lastPositions[arr[insertIdx - 1].id] : null;
-  const next = arr[insertIdx] ? lastPositions[arr[insertIdx].id] : null;
+  const next = arr[insertIdx]     ? lastPositions[arr[insertIdx].id]     : null;
   return (prev && next) ? (prev.y + prev.h + next.y) / 2 : null;
 }
 
 // ── Unified mousemove / mouseup ───────────────────────────────────────────────
 document.addEventListener('mousemove', e => {
-  if (altDragSt) {
-    altDragSt.active = true;
-    const svg = document.getElementById('arrows');
-    if (!altDragSt.previewPath) {
-      altDragSt.previewPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      altDragSt.previewPath.setAttribute('fill', 'none');
-      altDragSt.previewPath.setAttribute('stroke', '#888780');
-      altDragSt.previewPath.setAttribute('stroke-width', '1.2');
-      altDragSt.previewPath.setAttribute('stroke-dasharray', '6,4');
-      altDragSt.previewPath.setAttribute('opacity', '0.45');
-      altDragSt.previewPath.style.pointerEvents = 'none';
-      svg.appendChild(altDragSt.previewPath);
-    }
-    const sp = lastPositions[altDragSt.fromId];
-    if (sp) {
-      const cp = screenToCanvas(e.clientX, e.clientY);
-      const x1 = sp.x + sp.w, y1 = sp.y + sp.h / 2;
-      const mx = (x1 + cp.x) / 2;
-      altDragSt.previewPath.setAttribute('d', `M${x1} ${y1} C${mx} ${y1} ${mx} ${cp.y} ${cp.x} ${cp.y}`);
-    }
-    return;
-  }
   if (!dragSt) return;
   const dx = e.clientX - dragSt.startX, dy = e.clientY - dragSt.startY;
   if (!dragSt.active && Math.sqrt(dx * dx + dy * dy) < 6) return;
@@ -483,24 +567,6 @@ document.addEventListener('mousemove', e => {
 });
 
 document.addEventListener('mouseup', e => {
-  if (altDragSt) {
-    document.body.classList.remove('dep-drawing');
-    if (altDragSt.previewPath) altDragSt.previewPath.remove();
-    if (altDragSt.active) {
-      const cp = screenToCanvas(e.clientX, e.clientY);
-      const targetId = getNodeAtPoint(cp.x, cp.y);
-      if (targetId && targetId !== altDragSt.fromId) {
-        const from = altDragSt.fromId, to = targetId;
-        if (!state.dependencies) state.dependencies = [];
-        const idx = state.dependencies.findIndex(d => d.from === from && d.to === to);
-        if (idx >= 0) state.dependencies.splice(idx, 1);
-        else state.dependencies.push({ from, to });
-        saveState(); render();
-      }
-    }
-    altDragSt = null;
-    return;
-  }
   if (dragSt) {
     document.body.style.cursor = '';
     if (dragSt.active) {
@@ -525,7 +591,7 @@ document.addEventListener('mouseup', e => {
 });
 
 // ── State ─────────────────────────────────────────────────────────────────────
-function genId() { return 'n' + (idC++); }
+function genId()  { return 'n' + (idC++); }
 function todoId() { return 't' + Date.now() + Math.random().toString(36).slice(2, 6); }
 
 function saveState() {
@@ -539,7 +605,6 @@ function loadState() {
       const loaded = JSON.parse(s);
       state = loaded;
       if (!Array.isArray(state.todos)) state.todos = [];
-      if (!Array.isArray(state.dependencies)) state.dependencies = [];
       let mx = 0;
       function walk(n) {
         mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
@@ -555,10 +620,12 @@ function loadState() {
 function newNode(title = 'New project') {
   return { id: genId(), title, subtitle: '', note: '', done: false, priority: false, flag: null, completedAt: null, children: [] };
 }
+
 function allDescendantsDone(node) {
   if (!node.children || !node.children.length) return true;
   return node.children.every(c => c.done && allDescendantsDone(c));
 }
+
 function getProjectMomentum(proj) {
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   let count = 0;
@@ -569,6 +636,7 @@ function getProjectMomentum(proj) {
   countDone(proj);
   return count;
 }
+
 function getProjectHealth(proj) {
   let total = 0, done = 0, hasOpenFlagOrPriority = false;
   function scan(node) {
@@ -582,6 +650,7 @@ function getProjectHealth(proj) {
   if (done > 0) return 'drifting';
   return 'stalled';
 }
+
 function nodeHeight(node, isRoot) {
   let h = NODE_H_BASE;
   const titleLines = Math.max(1, Math.ceil((node.title || '').length / 22));
@@ -592,12 +661,14 @@ function nodeHeight(node, isRoot) {
   if (isRoot) h += 18;
   return h;
 }
+
 function subtreeHeight(node) {
   const h = nodeHeight(node);
   if (!node.children || !node.children.length) return h;
   const ch = node.children.reduce((s, c) => s + subtreeHeight(c) + ROW_GAP, -ROW_GAP);
   return Math.max(h, ch);
 }
+
 function layoutProject(proj, startY) {
   const positions = {};
   function place(node, col, top) {
@@ -614,8 +685,10 @@ function layoutProject(proj, startY) {
     }
   }
   place(proj, 0, 0);
-  return { positions, totalHeight: subtreeHeight(proj) };
+  const totalHeight = subtreeHeight(proj);
+  return { positions, totalHeight };
 }
+
 function removeNode(proj, id) {
   function rm(arr) {
     for (let i = 0; i < arr.length; i++) {
@@ -624,6 +697,22 @@ function removeNode(proj, id) {
     }
   }
   rm([proj]);
+}
+
+function findNodeById(id) {
+  function search(node) {
+    if (node.id === id) return node;
+    for (const c of (node.children || [])) {
+      const found = search(c);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (const p of state.projects) {
+    const found = search(p);
+    if (found) return found;
+  }
+  return null;
 }
 
 function commitEdit() {
@@ -781,19 +870,210 @@ document.getElementById('todo-close-btn').onclick = () => {
   todoPanel.classList.remove('open');
 };
 
-// ── Dependency helpers ────────────────────────────────────────────────────────
-function findProjectIndex(nodeId) {
-  function search(node) {
-    if (node.id === nodeId) return true;
-    for (const c of (node.children || [])) if (search(c)) return true;
-    return false;
+// ── Schedule View ─────────────────────────────────────────────────────────────
+const SV_SECTIONS = [
+  { key: 'today',      label: 'Today',      color: '#4a9eff', bg: 'rgba(74,158,255,0.08)',   border: 'rgba(74,158,255,0.25)' },
+  { key: 'tomorrow',   label: 'Tomorrow',   color: '#f0a030', bg: 'rgba(240,160,48,0.08)',   border: 'rgba(240,160,48,0.25)' },
+  { key: 'week',       label: 'This Week',  color: '#a78bfa', bg: 'rgba(167,139,250,0.08)',  border: 'rgba(167,139,250,0.25)' },
+  { key: 'non-urgent', label: 'Non-urgent', color: '#888780', bg: 'rgba(136,135,128,0.06)',  border: 'rgba(136,135,128,0.2)' },
+  { key: 'urgent',     label: 'Urgent',     color: '#e85050', bg: 'rgba(232,80,80,0.08)',    border: 'rgba(232,80,80,0.25)' },
+];
+
+function collectFlaggedTasks() {
+  const byFlag = { today: [], tomorrow: [], week: [], 'non-urgent': [], urgent: [] };
+  function walk(node, projTitle, projCol) {
+    if (node.flag && !node.done && byFlag[node.flag] !== undefined) {
+      byFlag[node.flag].push({ node, projTitle, projCol });
+    }
+    (node.children || []).forEach(c => walk(c, projTitle, projCol));
   }
-  for (let i = 0; i < state.projects.length; i++) {
-    if (search(state.projects[i])) return i;
-  }
-  return 0;
+  state.projects.forEach((proj, pi) => {
+    walk(proj, proj.title, PALETTE[pi % PALETTE.length]);
+  });
+  return byFlag;
 }
 
+function renderScheduleView() {
+  const byFlag = collectFlaggedTasks();
+  const total = SV_SECTIONS.reduce((s, sec) => s + byFlag[sec.key].length, 0);
+
+  const container = document.getElementById('schedule-view');
+  container.innerHTML = `
+    <div class="sv-header">
+      <span class="sv-title">Schedule</span>
+      <span class="sv-meta">${total === 0 ? 'No flagged tasks' : `${total} flagged task${total !== 1 ? 's' : ''} across all projects`}</span>
+    </div>
+    <div class="sv-columns">
+      ${SV_SECTIONS.map(sec => {
+        const tasks = byFlag[sec.key];
+        return `
+          <div class="sv-col">
+            <div class="sv-col-header" style="background:${sec.bg}; border-bottom-color:${sec.border}">
+              <span class="sv-col-label" style="color:${sec.color}">${sec.label}</span>
+              <span class="sv-col-count" style="background:${sec.border}; color:${sec.color}">${tasks.length}</span>
+            </div>
+            <div class="sv-col-body">
+              ${tasks.length === 0
+                ? '<div class="sv-empty">Nothing here</div>'
+                : tasks.map(({ node, projTitle, projCol }) => `
+                  <div class="sv-task" style="--accent:${projCol.bar}">
+                    <div class="sv-task-title">${esc(node.title)}</div>
+                    ${node.subtitle ? `<div class="sv-task-sub">${esc(node.subtitle)}</div>` : ''}
+                    <div class="sv-task-footer">
+                      <span class="sv-proj-name" style="color:${projCol.bar}">${esc(projTitle)}</span>
+                      <button class="sv-btn done-btn" data-id="${node.id}" title="Mark done">✓</button>
+                      <button class="sv-btn clear-btn" data-id="${node.id}" title="Clear flag">⚑</button>
+                    </div>
+                  </div>
+                `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  container.querySelectorAll('.sv-btn.done-btn').forEach(btn => {
+    btn.onclick = () => {
+      const node = findNodeById(btn.dataset.id);
+      if (node) { node.done = true; node.completedAt = Date.now(); saveState(); render(); renderScheduleView(); }
+    };
+  });
+  container.querySelectorAll('.sv-btn.clear-btn').forEach(btn => {
+    btn.onclick = () => {
+      const node = findNodeById(btn.dataset.id);
+      if (node) { node.flag = null; saveState(); render(); renderScheduleView(); }
+    };
+  });
+}
+
+// ── Momentum View ─────────────────────────────────────────────────────────────
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const MIN = 60000, HOUR = 3600000, DAY = 86400000;
+  if (diff < MIN)        return 'just now';
+  if (diff < HOUR)       return `${Math.floor(diff / MIN)}m ago`;
+  if (diff < DAY)        return `${Math.floor(diff / HOUR)}h ago`;
+  if (diff < 2 * DAY)    return 'yesterday';
+  return `${Math.floor(diff / DAY)}d ago`;
+}
+
+function renderMomentumView() {
+  const now = Date.now();
+  const DAY = 86400000;
+  const cutoff = now - 7 * DAY;
+
+  // Collect completed tasks from last 7 days
+  const recent = [];
+  function walk(node, projTitle, projCol) {
+    if (node.done && node.completedAt && node.completedAt > cutoff) {
+      recent.push({ node, projTitle, projCol });
+    }
+    (node.children || []).forEach(c => walk(c, projTitle, projCol));
+  }
+  state.projects.forEach((proj, pi) => walk(proj, proj.title, PALETTE[pi % PALETTE.length]));
+  recent.sort((a, b) => b.node.completedAt - a.node.completedAt);
+
+  // Build 7-day sparkline (index 0 = 6 days ago, index 6 = today)
+  const bars = Array(7).fill(0);
+  recent.forEach(({ node }) => {
+    const bucket = 6 - Math.floor((now - node.completedAt) / DAY);
+    if (bucket >= 0 && bucket < 7) bars[bucket]++;
+  });
+  const maxBar = Math.max(1, ...bars);
+
+  // Day labels
+  const dayLabels = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now - (6 - i) * DAY);
+    return i === 6 ? 'Today' : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+  });
+
+  // Best day
+  const bestCount = Math.max(...bars);
+  const bestLabel = bestCount > 0 ? `${bestCount} task${bestCount !== 1 ? 's' : ''} on ${dayLabels[bars.indexOf(bestCount)]}` : '—';
+
+  // Streak: consecutive days with at least 1 completion ending today
+  let streak = 0;
+  for (let i = 6; i >= 0; i--) {
+    if (bars[i] > 0) streak++;
+    else break;
+  }
+
+  // Group by project (preserve insertion order = most recent project first)
+  const projMap = new Map();
+  recent.forEach(t => {
+    if (!projMap.has(t.projTitle)) projMap.set(t.projTitle, { col: t.projCol, tasks: [] });
+    projMap.get(t.projTitle).tasks.push(t);
+  });
+
+  // Build sparkline SVG
+  const barW = 24, barGap = 8, totalW = 7 * (barW + barGap) - barGap, svgH = 88;
+  const sparkSVG = `<svg class="mv-spark-svg" viewBox="0 0 ${totalW} ${svgH}" preserveAspectRatio="none">
+    ${bars.map((v, i) => {
+      const bh = Math.max(3, Math.round((v / maxBar) * (svgH - 14)));
+      const x = i * (barW + barGap);
+      const y = svgH - bh;
+      const isToday = i === 6;
+      const fill = isToday ? '#5dcaa5' : (v > 0 ? '#3d3d3b' : '#2a2a28');
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="3" fill="${fill}"/>
+        ${v > 0 ? `<text x="${x + barW / 2}" y="${y - 4}" text-anchor="middle" fill="${isToday ? '#5dcaa5' : '#5f5e5a'}" font-size="9" font-family="sans-serif">${v}</text>` : ''}`;
+    }).join('')}
+  </svg>`;
+
+  let listHTML = '';
+  if (recent.length === 0) {
+    listHTML = `<div class="mv-empty">No completed tasks in the last 7 days.<br>Mark something done and it'll show up here.</div>`;
+  } else {
+    projMap.forEach(({ col, tasks }, projTitle) => {
+      listHTML += `
+        <div class="mv-proj-group">
+          <div class="mv-proj-heading" style="border-left-color:${col.bar}; color:${col.bar}">
+            <span class="mv-proj-heading-name">${esc(projTitle)}</span>
+            <span class="mv-proj-heading-count">${tasks.length} completed</span>
+          </div>
+          <div>
+            ${tasks.map(({ node, col: c }) => `
+              <div class="mv-task">
+                <div class="mv-check-ring" style="border-color:${c.bar}; color:${c.bar}">✓</div>
+                <div class="mv-task-info">
+                  <div class="mv-task-name">${esc(node.title)}</div>
+                  ${node.subtitle ? `<div class="mv-task-sub">${esc(node.subtitle)}</div>` : ''}
+                </div>
+                <div class="mv-task-age">${timeAgo(node.completedAt)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  const container = document.getElementById('momentum-view');
+  container.innerHTML = `
+    <div class="mv-header">
+      <span class="mv-title">Momentum</span>
+      <span class="mv-meta">Last 7 days &mdash; <strong style="color:#5dcaa5">${recent.length}</strong> task${recent.length !== 1 ? 's' : ''} completed</span>
+    </div>
+    <div class="mv-body">
+      <div class="mv-sidebar">
+        <div class="mv-spark-label">Daily activity</div>
+        ${sparkSVG}
+        <div class="mv-spark-days">
+          ${dayLabels.map((l, i) => `<span${i === 6 ? ' class="is-today"' : ''}>${l}</span>`).join('')}
+        </div>
+        <div class="mv-stats">
+          <div class="mv-stat"><span>This week</span><span class="mv-stat-val">${recent.length} done</span></div>
+          <div class="mv-stat"><span>Best day</span><span class="mv-stat-val">${bestLabel}</span></div>
+          <div class="mv-stat"><span>Streak</span><span class="mv-stat-val">${streak > 0 ? `${streak} day${streak !== 1 ? 's' : ''}` : 'None yet'}</span></div>
+          <div class="mv-stat"><span>Projects active</span><span class="mv-stat-val">${projMap.size}</span></div>
+        </div>
+      </div>
+      <div class="mv-list-area">${listHTML}</div>
+    </div>
+  `;
+}
+
+// ── Graph Render ──────────────────────────────────────────────────────────────
 function getNodeAtPoint(x, y) {
   for (const [id, pos] of Object.entries(lastPositions)) {
     if (x >= pos.x && x <= pos.x + pos.w && y >= pos.y && y <= pos.y + pos.h) return id;
@@ -801,7 +1081,6 @@ function getNodeAtPoint(x, y) {
   return null;
 }
 
-// ── Graph Render ──────────────────────────────────────────────────────────────
 function render() {
   const nodesLayer = document.getElementById('nodes-layer');
   const svg = document.getElementById('arrows');
@@ -828,13 +1107,10 @@ function render() {
   svg.setAttribute('width', maxX);
   svg.setAttribute('height', maxY);
 
-  const markerDefs = projData.map((pd, pi) => {
+  const markerDefs = projData.map(({ pi }) => {
     const col = PALETTE[pi % PALETTE.length];
     return `<marker id="ah${pi}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="${col.arrow}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
-    <marker id="dep${pi}" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M1 1 L11 5 L1 9 Z" fill="#1a1a18" stroke="${col.arrow}" stroke-width="1.4" stroke-linejoin="round"/>
     </marker>`;
   }).join('');
   svg.innerHTML = `<defs>${markerDefs}
@@ -898,7 +1174,7 @@ function render() {
       <div class="node-controls">
         <div class="ctrl-btn done-btn${node.done ? ' active' : ''}" title="Done">✓</div>
         <div class="ctrl-btn priority-btn${node.priority ? ' active' : ''}" title="Priority">★</div>
-        <div class="ctrl-btn flag-btn${flagClass}" title="Flag (now → tomorrow → urgent → clear)">⚑</div>
+        <div class="ctrl-btn flag-btn${flagClass}" title="Flag">⚑</div>
         <div class="ctrl-btn del-btn" title="Delete">✕</div>
       </div>
       <div class="node-title">${esc(node.title)}</div>
@@ -921,7 +1197,6 @@ function render() {
     el.querySelector('.del-btn').onclick = e => {
       e.stopPropagation();
       if (activeEdit && activeEdit.node === node) activeEdit = null;
-      state.dependencies = (state.dependencies || []).filter(d => d.from !== node.id && d.to !== node.id);
       if (!parentId) state.projects.splice(pi, 1);
       else removeNode(proj, node.id);
       saveState(); render();
@@ -933,12 +1208,6 @@ function render() {
       if (e.target.closest('.node-controls')) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       e.stopPropagation();
-      if (e.altKey) {
-        e.preventDefault();
-        document.body.classList.add('dep-drawing');
-        altDragSt = { fromId: node.id, active: false, previewPath: null };
-        return;
-      }
       const info = findParentInfo(node.id);
       if (!info || info.arr.length < 2) return;
       dragSt = {
@@ -975,53 +1244,6 @@ function render() {
 
   projData.forEach(({ proj, pi }) => renderNode(proj, null, proj, pi));
 
-  // Draw dependency lines
-  (state.dependencies || []).forEach(({ from, to }) => {
-    const sp = allPositions[from];
-    const tp = allPositions[to];
-    if (!sp || !tp) return;
-
-    const pi = findProjectIndex(from);
-    const col = PALETTE[pi % PALETTE.length];
-
-    let x1, y1, x2, y2, cx1, cy1, cx2, cy2;
-    const dx = (tp.x + tp.w / 2) - (sp.x + sp.w / 2);
-
-    if (Math.abs(dx) > NODE_W / 2) {
-      if (dx > 0) {
-        x1 = sp.x + sp.w; y1 = sp.y + sp.h / 2;
-        x2 = tp.x;        y2 = tp.y + tp.h / 2;
-      } else {
-        x1 = sp.x;        y1 = sp.y + sp.h / 2;
-        x2 = tp.x + tp.w; y2 = tp.y + tp.h / 2;
-      }
-      const mx = (x1 + x2) / 2;
-      cx1 = mx; cy1 = y1; cx2 = mx; cy2 = y2;
-    } else {
-      // Same column — arc out to the right
-      if (tp.y >= sp.y) {
-        x1 = sp.x + sp.w / 2; y1 = sp.y + sp.h;
-        x2 = tp.x + tp.w / 2; y2 = tp.y;
-      } else {
-        x1 = sp.x + sp.w / 2; y1 = sp.y;
-        x2 = tp.x + tp.w / 2; y2 = tp.y + tp.h;
-      }
-      const arc = NODE_W * 0.9;
-      cx1 = x1 + arc; cy1 = y1;
-      cx2 = x2 + arc; cy2 = y2;
-    }
-
-    const dpath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    dpath.setAttribute('d', `M${x1} ${y1} C${cx1} ${cy1} ${cx2} ${cy2} ${x2} ${y2}`);
-    dpath.setAttribute('fill', 'none');
-    dpath.setAttribute('stroke', col.arrow);
-    dpath.setAttribute('stroke-width', '1.2');
-    dpath.setAttribute('stroke-dasharray', '6,4');
-    dpath.setAttribute('opacity', '0.65');
-    dpath.setAttribute('marker-end', `url(#dep${pi})`);
-    svg.appendChild(dpath);
-  });
-
   renderTodos();
   renderMinimap();
 }
@@ -1037,6 +1259,10 @@ document.getElementById('add-btn').onclick = () => {
   setTimeout(() => { const e = document.getElementById('node-' + p.id); if (e) startEdit(e, p); }, 30);
 };
 
+// ── View button handlers ──────────────────────────────────────────────────────
+document.getElementById('schedule-btn').onclick = () => showView('schedule');
+document.getElementById('momentum-btn').onclick = () => showView('momentum');
+
 // ── Export / Import ───────────────────────────────────────────────────────────
 function downloadJSON(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1050,7 +1276,7 @@ function downloadJSON(data, filename) {
 
 function exportState() {
   const date = new Date().toISOString().slice(0, 10);
-  downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos, dependencies: state.dependencies || [] }, `projects-backup-${date}.json`);
+  downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
 }
 
 document.getElementById('export-btn').onclick = exportState;
@@ -1064,10 +1290,9 @@ document.getElementById('import-file').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
 
-  // Auto-backup current data before overwriting (skip if nothing to lose)
   if (state.projects.length || state.todos.length) {
     const date = new Date().toISOString().slice(0, 10);
-    downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos, dependencies: state.dependencies || [] }, `projects-backup-${date}.json`);
+    downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
   }
 
   const reader = new FileReader();
@@ -1077,7 +1302,6 @@ document.getElementById('import-file').addEventListener('change', e => {
       if (!Array.isArray(loaded.projects)) throw new Error();
       state.projects = loaded.projects;
       state.todos = Array.isArray(loaded.todos) ? loaded.todos : [];
-      state.dependencies = Array.isArray(loaded.dependencies) ? loaded.dependencies : [];
       let mx = 0;
       function walk(n) {
         mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
