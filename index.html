@@ -388,6 +388,14 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .mv-task-sub { font-size: 10px; color: #5f5e5a; margin-top: 1px; }
 .mv-task-age { font-size: 10px; color: #4a4a46; white-space: nowrap; flex-shrink: 0; }
 .mv-empty { color: #4a4a46; font-size: 13px; text-align: center; padding: 60px 24px; line-height: 2.2; }
+
+/* ── Momentum heatmap ── */
+.mv-heatmap-section { padding-top: 18px; border-top: 0.5px solid #2a2a28; margin-bottom: 18px; }
+/* ── Momentum skeleton empty state ── */
+.mv-skeleton-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 22px; }
+.mv-skeleton-heading { height: 12px; width: 55%; background: #252523; border-radius: 3px; margin-bottom: 6px; border: 0.5px solid #2a2a28; }
+.mv-skeleton-row { height: 36px; border-radius: 6px; background: #252523; border: 0.5px solid #2e2e2c; }
+.mv-empty-hint { font-size: 11px; color: #3a3a36; text-align: center; padding-top: 24px; line-height: 1.9; }
 </style>
 </head>
 <body>
@@ -706,6 +714,7 @@ function loadState() {
       function walk(n) {
         mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
         if (!('completedAt' in n)) n.completedAt = null;
+        if (!('createdAt' in n)) n.createdAt = null;
         (n.children || []).forEach(walk);
       }
       state.projects.forEach(walk);
@@ -715,7 +724,7 @@ function loadState() {
 }
 
 function newNode(title = 'New project') {
-  return { id: genId(), title, subtitle: '', note: '', done: false, priority: false, flag: null, completedAt: null, children: [] };
+  return { id: genId(), title, subtitle: '', note: '', done: false, priority: false, flag: null, completedAt: null, createdAt: Date.now(), children: [] };
 }
 
 function allDescendantsDone(node) {
@@ -1095,20 +1104,27 @@ function timeAgo(ts) {
 function renderMomentumView() {
   const now = Date.now();
   const DAY = 86400000;
-  const cutoff = now - 7 * DAY;
+  const cutoff7 = now - 7 * DAY;
+  const HEAT_WEEKS = 5;
+  const HEAT_TOTAL = HEAT_WEEKS * 7; // 35 cells
 
-  // Collect completed tasks from last 7 days
+  // Collect completed tasks (last 7 days for list, up to 35 days for heatmap)
   const recent = [];
+  const heatCounts = Array(HEAT_TOTAL).fill(0);
+
   function walk(node, projTitle, projCol) {
-    if (node.done && node.completedAt && node.completedAt > cutoff) {
-      recent.push({ node, projTitle, projCol });
+    if (node.done && node.completedAt) {
+      if (node.completedAt > cutoff7) recent.push({ node, projTitle, projCol });
+      const daysAgo = Math.floor((now - node.completedAt) / DAY);
+      const bucket = HEAT_TOTAL - 1 - daysAgo;
+      if (bucket >= 0 && bucket < HEAT_TOTAL) heatCounts[bucket]++;
     }
     (node.children || []).forEach(c => walk(c, projTitle, projCol));
   }
   state.projects.forEach((proj, pi) => walk(proj, proj.title, PALETTE[pi % PALETTE.length]));
   recent.sort((a, b) => b.node.completedAt - a.node.completedAt);
 
-  // Build 7-day sparkline (index 0 = 6 days ago, index 6 = today)
+  // ── 7-day sparkline ──────────────────────────────────────────────────────
   const bars = Array(7).fill(0);
   recent.forEach(({ node }) => {
     const bucket = 6 - Math.floor((now - node.completedAt) / DAY);
@@ -1116,31 +1132,26 @@ function renderMomentumView() {
   });
   const maxBar = Math.max(1, ...bars);
 
-  // Day labels
   const dayLabels = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(now - (6 - i) * DAY);
     return i === 6 ? 'Today' : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
   });
 
-  // Best day
   const bestCount = Math.max(...bars);
   const bestLabel = bestCount > 0 ? `${bestCount} task${bestCount !== 1 ? 's' : ''} on ${dayLabels[bars.indexOf(bestCount)]}` : '—';
 
-  // Streak: consecutive days with at least 1 completion ending today
   let streak = 0;
   for (let i = 6; i >= 0; i--) {
     if (bars[i] > 0) streak++;
     else break;
   }
 
-  // Group by project (preserve insertion order = most recent project first)
   const projMap = new Map();
   recent.forEach(t => {
     if (!projMap.has(t.projTitle)) projMap.set(t.projTitle, { col: t.projCol, tasks: [] });
     projMap.get(t.projTitle).tasks.push(t);
   });
 
-  // Build sparkline SVG
   const barW = 24, barGap = 8, totalW = 7 * (barW + barGap) - barGap, svgH = 88;
   const sparkSVG = `<svg class="mv-spark-svg" viewBox="0 0 ${totalW} ${svgH}" preserveAspectRatio="none">
     ${bars.map((v, i) => {
@@ -1154,9 +1165,70 @@ function renderMomentumView() {
     }).join('')}
   </svg>`;
 
+  // ── 35-day heatmap (5 weeks × 7 days, Sun–Sat rows, oldest col left) ────
+  const todayDow = new Date(now).getDay(); // 0=Sun … 6=Sat
+  const maxHeat = Math.max(1, ...heatCounts);
+  const CELL = 22, CGAP = 4, LBFW = 14, LBFGAP = 4;
+  const hSvgW = LBFW + LBFGAP + HEAT_WEEKS * (CELL + CGAP) - CGAP;
+  const hSvgH = 7 * (CELL + CGAP) - CGAP;
+  const DAY_LBL = ['S','M','T','W','T','F','S'];
+  const SHOW_LBL = [false, true, false, true, false, true, false]; // M W F
+
+  function heatFill(count) {
+    if (count === 0) return '#252523';
+    const t = count / maxHeat;
+    if (t < 0.25) return '#173d2e';
+    if (t < 0.5)  return '#1d5540';
+    if (t < 0.75) return '#267055';
+    return '#5dcaa5';
+  }
+
+  let hCells = '';
+  for (let r = 0; r < 7; r++) {
+    if (SHOW_LBL[r]) {
+      const y = r * (CELL + CGAP) + CELL / 2 + 4;
+      hCells += `<text x="${LBFW}" y="${y}" text-anchor="end" fill="#3a3a36" font-size="8" font-family="sans-serif">${DAY_LBL[r]}</text>`;
+    }
+  }
+  for (let c = 0; c < HEAT_WEEKS; c++) {
+    for (let r = 0; r < 7; r++) {
+      const i = c * 7 + r;
+      const daysAgo = (HEAT_WEEKS - 1) * 7 + todayDow - i;
+      const x = LBFW + LBFGAP + c * (CELL + CGAP);
+      const y = r * (CELL + CGAP);
+      if (daysAgo < 0) {
+        // future cell — dim placeholder
+        hCells += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="3" fill="#1e1e1c"/>`;
+      } else {
+        const hIdx = HEAT_TOTAL - 1 - daysAgo;
+        const count = (hIdx >= 0 && hIdx < HEAT_TOTAL) ? heatCounts[hIdx] : 0;
+        const fill = heatFill(count);
+        const isToday = daysAgo === 0;
+        hCells += isToday
+          ? `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="3" fill="${fill}" stroke="#5dcaa5" stroke-width="1.5"/>`
+          : `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="3" fill="${fill}"/>`;
+      }
+    }
+  }
+  const heatmapSVG = `<svg viewBox="0 0 ${hSvgW} ${hSvgH}" width="${hSvgW}" height="${hSvgH}" style="display:block">${hCells}</svg>`;
+
+  // ── Task list ─────────────────────────────────────────────────────────────
   let listHTML = '';
   if (recent.length === 0) {
-    listHTML = `<div class="mv-empty">No completed tasks in the last 7 days.<br>Mark something done and it'll show up here.</div>`;
+    listHTML = `
+      <div class="mv-skeleton-group">
+        <div class="mv-skeleton-heading"></div>
+        <div class="mv-skeleton-row"></div>
+        <div class="mv-skeleton-row" style="opacity:0.55"></div>
+      </div>
+      <div class="mv-skeleton-group">
+        <div class="mv-skeleton-heading" style="width:38%"></div>
+        <div class="mv-skeleton-row"></div>
+        <div class="mv-skeleton-row" style="opacity:0.55"></div>
+        <div class="mv-skeleton-row" style="opacity:0.28"></div>
+      </div>
+      <div class="mv-empty-hint">Complete tasks to see your<br>activity grouped by project</div>
+    `;
   } else {
     projMap.forEach(({ col, tasks }, projTitle) => {
       listHTML += `
@@ -1194,6 +1266,10 @@ function renderMomentumView() {
         ${sparkSVG}
         <div class="mv-spark-days">
           ${dayLabels.map((l, i) => `<span${i === 6 ? ' class="is-today"' : ''}>${l}</span>`).join('')}
+        </div>
+        <div class="mv-heatmap-section">
+          <div class="mv-spark-label">5-week activity</div>
+          ${heatmapSVG}
         </div>
         <div class="mv-stats">
           <div class="mv-stat"><span>This week</span><span class="mv-stat-val">${recent.length} done</span></div>
@@ -1450,6 +1526,7 @@ document.getElementById('import-file').addEventListener('change', e => {
       function walk(n) {
         mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
         if (!('completedAt' in n)) n.completedAt = null;
+        if (!('createdAt' in n)) n.createdAt = null;
         (n.children || []).forEach(walk);
       }
       state.projects.forEach(walk);
