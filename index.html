@@ -265,6 +265,62 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .sv-btn.done-btn:hover { background: #162816; color: #5dcaa5; border-color: #2a4a2a; }
 .sv-btn.clear-btn:hover { background: #3a3a36; color: #c2c0b6; }
 
+/* ── Primary new-project button ── */
+#add-btn { background: #3d3476; border-color: #7f77dd; color: #d0ccff; padding: 7px 20px; font-size: 13px; font-weight: 600; }
+#add-btn:hover { background: #534ab7; border-color: #9891f0; }
+
+/* ── Options dropdown ── */
+#options-wrap { position: relative; }
+#options-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: #252523; border: 0.5px solid #4a4a46; border-radius: 8px;
+  padding: 4px; min-width: 168px; z-index: 200;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+  display: none; animation: fdrop .1s ease;
+}
+@keyframes fdrop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+#options-dropdown.open { display: block; }
+.opt-item {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none; border-radius: 5px;
+  color: #c2c0b6; font-size: 12px; font-family: inherit;
+  padding: 7px 12px; cursor: pointer; white-space: nowrap;
+}
+.opt-item:hover { background: #3a3a36; }
+
+/* ── Floating view toggle ── */
+#view-toggle {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px;
+  background: #252523; border: 0.5px solid #4a4a46; border-radius: 20px;
+  padding: 3px; z-index: 55;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.55);
+}
+.vt-btn {
+  background: transparent; border: none; border-radius: 16px;
+  color: #888780; font-size: 11px; padding: 5px 14px; cursor: pointer;
+  font-family: inherit; transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.vt-btn:hover { color: #c2c0b6; background: #333331; }
+.vt-btn.vt-active { background: #2e2b42; color: #a09ae8; }
+
+/* ── Navigate-to-node highlight ring ── */
+.node-el.nav-highlight::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 13px;
+  border: 2px solid rgba(127,119,221,0.85); pointer-events: none;
+  animation: nhring 1.5s ease-out forwards;
+}
+@keyframes nhring {
+  0%   { opacity: 1; inset: -4px; }
+  100% { opacity: 0; inset: -10px; }
+}
+
+/* ── Schedule task clickable ── */
+.sv-task { cursor: pointer; }
+.sv-task-nav { font-size: 9px; color: #444441; margin-left: auto; padding-right: 2px; transition: color .1s; }
+.sv-task:hover .sv-task-nav { color: #888780; }
+
 /* ── Momentum View ── */
 #momentum-view {
   display: none; flex: 1; flex-direction: column;
@@ -335,14 +391,17 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 <div id="app">
   <div id="toolbar">
     <h1>Projects</h1>
-    <button id="schedule-btn" class="tb-btn" title="View all flagged tasks by date">⊡ Schedule</button>
-    <button id="momentum-btn" class="tb-btn" title="View recent progress">◎ Momentum</button>
     <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
       ◈ Essentials <span class="todo-count">0</span>
     </button>
-    <button id="export-btn" class="tb-btn" title="Download a backup of all your data">↓ Export</button>
-    <button id="import-btn" class="tb-btn" title="Restore from a backup file">↑ Import</button>
-    <input id="import-file" type="file" accept=".json" style="display:none">
+    <div id="options-wrap">
+      <button id="options-btn" class="tb-btn" title="Options">⋯ Options</button>
+      <div id="options-dropdown">
+        <button id="export-btn" class="opt-item">↓ Export backup</button>
+        <button id="import-btn" class="opt-item">↑ Import backup</button>
+        <input id="import-file" type="file" accept=".json" style="display:none">
+      </div>
+    </div>
     <button id="add-btn" class="tb-btn">+ New project</button>
   </div>
   <div id="canvas-wrap">
@@ -354,6 +413,13 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
   </div>
   <div id="schedule-view"></div>
   <div id="momentum-view"></div>
+</div>
+
+<!-- Floating view toggle -->
+<div id="view-toggle">
+  <button class="vt-btn vt-active" data-view="graph">⊞ Map</button>
+  <button class="vt-btn" data-view="schedule">⊡ Schedule</button>
+  <button class="vt-btn" data-view="momentum">◎ Momentum</button>
 </div>
 
 <!-- Minimap -->
@@ -408,20 +474,48 @@ let currentView = 'graph'; // 'graph' | 'schedule' | 'momentum'
 const canvasWrap = document.getElementById('canvas-wrap');
 
 // ── View switching ────────────────────────────────────────────────────────────
+function updateViewToggle() {
+  document.querySelectorAll('.vt-btn').forEach(btn => {
+    btn.classList.toggle('vt-active', btn.dataset.view === currentView);
+  });
+}
+
 function showView(view) {
   if (currentView === view) view = 'graph';
   currentView = view;
 
-  canvasWrap.style.display         = view === 'graph'    ? '' : 'none';
+  canvasWrap.style.display = view === 'graph' ? '' : 'none';
   document.getElementById('schedule-view').classList.toggle('visible', view === 'schedule');
   document.getElementById('momentum-view').classList.toggle('visible', view === 'momentum');
   document.getElementById('minimap').style.display = view === 'graph' ? '' : 'none';
 
-  document.getElementById('schedule-btn').classList.toggle('view-active', view === 'schedule');
-  document.getElementById('momentum-btn').classList.toggle('view-active', view === 'momentum');
+  updateViewToggle();
 
   if (view === 'schedule') renderScheduleView();
   if (view === 'momentum') renderMomentumView();
+}
+
+function navigateToNode(nodeId) {
+  currentView = 'graph';
+  canvasWrap.style.display = '';
+  document.getElementById('schedule-view').classList.remove('visible');
+  document.getElementById('momentum-view').classList.remove('visible');
+  document.getElementById('minimap').style.display = '';
+  updateViewToggle();
+
+  const pos = lastPositions[nodeId];
+  if (pos) {
+    const cx = pos.x + pos.w / 2 - canvasWrap.clientWidth / 2;
+    const cy = pos.y + pos.h / 2 - canvasWrap.clientHeight / 2;
+    canvasWrap.scrollTo({ left: Math.max(0, cx), top: Math.max(0, cy), behavior: 'smooth' });
+    setTimeout(() => {
+      const el = document.getElementById('node-' + nodeId);
+      if (el) {
+        el.classList.add('nav-highlight');
+        setTimeout(() => el.classList.remove('nav-highlight'), 1600);
+      }
+    }, 300);
+  }
 }
 
 // ── Minimap ───────────────────────────────────────────────────────────────────
@@ -916,11 +1010,12 @@ function renderScheduleView() {
               ${tasks.length === 0
                 ? '<div class="sv-empty">Nothing here</div>'
                 : tasks.map(({ node, projTitle, projCol }) => `
-                  <div class="sv-task" style="--accent:${projCol.bar}">
+                  <div class="sv-task" style="--accent:${projCol.bar}" data-id="${node.id}" title="View on map">
                     <div class="sv-task-title">${esc(node.title)}</div>
                     ${node.subtitle ? `<div class="sv-task-sub">${esc(node.subtitle)}</div>` : ''}
                     <div class="sv-task-footer">
                       <span class="sv-proj-name" style="color:${projCol.bar}">${esc(projTitle)}</span>
+                      <span class="sv-task-nav">↗ map</span>
                       <button class="sv-btn done-btn" data-id="${node.id}" title="Mark done">✓</button>
                       <button class="sv-btn clear-btn" data-id="${node.id}" title="Clear flag">⚑</button>
                     </div>
@@ -934,15 +1029,23 @@ function renderScheduleView() {
   `;
 
   container.querySelectorAll('.sv-btn.done-btn').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = e => {
+      e.stopPropagation();
       const node = findNodeById(btn.dataset.id);
       if (node) { node.done = true; node.completedAt = Date.now(); saveState(); render(); renderScheduleView(); }
     };
   });
   container.querySelectorAll('.sv-btn.clear-btn').forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = e => {
+      e.stopPropagation();
       const node = findNodeById(btn.dataset.id);
       if (node) { node.flag = null; saveState(); render(); renderScheduleView(); }
+    };
+  });
+  container.querySelectorAll('.sv-task').forEach(card => {
+    card.onclick = e => {
+      if (e.target.closest('.sv-btn')) return;
+      navigateToNode(card.dataset.id);
     };
   });
 }
@@ -1259,9 +1362,19 @@ document.getElementById('add-btn').onclick = () => {
   setTimeout(() => { const e = document.getElementById('node-' + p.id); if (e) startEdit(e, p); }, 30);
 };
 
-// ── View button handlers ──────────────────────────────────────────────────────
-document.getElementById('schedule-btn').onclick = () => showView('schedule');
-document.getElementById('momentum-btn').onclick = () => showView('momentum');
+// ── Floating view toggle handlers ────────────────────────────────────────────
+document.querySelectorAll('.vt-btn').forEach(btn => {
+  btn.onclick = () => showView(btn.dataset.view);
+});
+
+// ── Options dropdown ──────────────────────────────────────────────────────────
+document.getElementById('options-btn').onclick = e => {
+  e.stopPropagation();
+  document.getElementById('options-dropdown').classList.toggle('open');
+};
+document.addEventListener('click', () => {
+  document.getElementById('options-dropdown').classList.remove('open');
+});
 
 // ── Export / Import ───────────────────────────────────────────────────────────
 function downloadJSON(data, filename) {
