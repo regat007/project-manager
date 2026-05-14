@@ -396,6 +396,39 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .mv-skeleton-heading { height: 12px; width: 55%; background: #252523; border-radius: 3px; margin-bottom: 6px; border: 0.5px solid #2a2a28; }
 .mv-skeleton-row { height: 36px; border-radius: 6px; background: #252523; border: 0.5px solid #2e2e2c; }
 .mv-empty-hint { font-size: 11px; color: #3a3a36; text-align: center; padding-top: 24px; line-height: 1.9; }
+
+/* ── Guide Modal ── */
+#guide-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.62);
+  z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+}
+#guide-overlay.hidden { display: none; }
+#guide-modal {
+  background: #1e1e1c;
+  border: 0.5px solid #3a3a36;
+  border-radius: 12px;
+  width: 360px;
+  padding: 28px 28px 22px;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.7);
+  display: flex; flex-direction: column; gap: 14px;
+}
+#guide-icon { font-size: 28px; color: #7f77dd; line-height: 1; }
+#guide-title { font-size: 15px; font-weight: 600; color: #f0ede4; }
+#guide-body { font-size: 13px; color: #888780; line-height: 1.7; min-height: 60px; }
+#guide-body strong { color: #c2c0b6; font-weight: 500; }
+#guide-body em { color: #a09ae8; font-style: normal; }
+#guide-dots { display: flex; gap: 5px; }
+.guide-dot { width: 6px; height: 6px; border-radius: 50%; background: #3a3a36; transition: background .15s; }
+.guide-dot.active { background: #7f77dd; }
+#guide-footer { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+#guide-prev { background: #252523; border: 0.5px solid #3a3a36; color: #888780; font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+#guide-prev:hover { background: #2c2c2a; color: #c2c0b6; }
+#guide-next { background: #534ab7; border: none; color: #e0dde8; font-size: 12px; padding: 5px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; }
+#guide-next:hover { background: #635ac7; }
+#guide-skip { margin-left: auto; background: none; border: none; color: #4a4a46; font-size: 11px; cursor: pointer; padding: 4px 0; font-family: inherit; }
+#guide-skip:hover { color: #888780; }
 </style>
 </head>
 <body>
@@ -413,6 +446,7 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
         <input id="import-file" type="file" accept=".json" style="display:none">
       </div>
     </div>
+    <button id="guide-btn" class="tb-btn" title="Show guide">? Guide</button>
     <button id="add-btn" class="tb-btn">+ New project</button>
   </div>
   <div id="canvas-wrap">
@@ -453,6 +487,21 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
   <div id="todo-footer">
     <span id="todo-remaining"></span>
     <button id="todo-clear-done">Clear done</button>
+  </div>
+</div>
+
+<!-- Guide Modal -->
+<div id="guide-overlay" class="hidden">
+  <div id="guide-modal">
+    <div id="guide-icon"></div>
+    <div id="guide-title"></div>
+    <div id="guide-body"></div>
+    <div id="guide-dots"></div>
+    <div id="guide-footer">
+      <button id="guide-prev">← Back</button>
+      <button id="guide-next">Next →</button>
+      <button id="guide-skip">Skip guide</button>
+    </div>
   </div>
 </div>
 
@@ -1541,8 +1590,83 @@ document.getElementById('import-file').addEventListener('change', e => {
 });
 
 window.addEventListener('resize', render);
+
+// ── Guide ─────────────────────────────────────────────────────────────────────
+const GUIDE_KEY = 'pgraph_guided';
+const GUIDE_STEPS = [
+  {
+    icon: '◻',
+    title: 'Welcome to Project Graph Manager',
+    body: 'A visual tool for managing projects and tracking momentum. This quick guide covers the key features &mdash; takes about 30 seconds.',
+  },
+  {
+    icon: '⊞',
+    title: 'Map view',
+    body: 'Click <strong>+ New project</strong> to create a project card. Hover a card to reveal the <strong>+</strong> button on its edge &mdash; click it to add sub-tasks. Drag cards to rearrange. Double-click any card to edit its text.',
+  },
+  {
+    icon: '⚑',
+    title: 'Flagging tasks',
+    body: 'Hover any card and click <strong>⚑</strong> to set a flag: <em>Today</em>, <em>Tomorrow</em>, <em>This week</em>, or <em>Urgent</em>. Flagged tasks surface automatically in the Schedule view.',
+  },
+  {
+    icon: '⊡',
+    title: 'Schedule view',
+    body: 'Switch to <strong>⊡ Schedule</strong> to see all flagged tasks grouped by urgency. Mark them done or clear flags directly from here without going back to the map.',
+  },
+  {
+    icon: '◎',
+    title: 'Momentum view',
+    body: 'Switch to <strong>◎ Momentum</strong> to see each project\'s health &mdash; <em>active</em>, <em>stale</em>, or <em>stuck</em> &mdash; based on how recently tasks were completed.',
+  },
+  {
+    icon: '◈',
+    title: 'Essentials panel',
+    body: 'Click <strong>◈ Essentials</strong> in the toolbar for a quick to-do list not tied to any project. Use it for small tasks that don\'t need a full project card. You\'re all set &mdash; happy planning!',
+  },
+];
+
+let guideStep = 0;
+
+function renderGuideStep() {
+  const step = GUIDE_STEPS[guideStep];
+  document.getElementById('guide-icon').textContent = step.icon;
+  document.getElementById('guide-title').textContent = step.title;
+  document.getElementById('guide-body').innerHTML = step.body;
+  document.getElementById('guide-dots').innerHTML = GUIDE_STEPS.map((_, i) =>
+    `<div class="guide-dot${i === guideStep ? ' active' : ''}"></div>`
+  ).join('');
+  document.getElementById('guide-prev').style.visibility = guideStep === 0 ? 'hidden' : 'visible';
+  document.getElementById('guide-next').textContent = guideStep === GUIDE_STEPS.length - 1 ? 'Done ✓' : 'Next →';
+}
+
+function showGuide(step = 0) {
+  guideStep = step;
+  renderGuideStep();
+  document.getElementById('guide-overlay').classList.remove('hidden');
+}
+
+function hideGuide() {
+  document.getElementById('guide-overlay').classList.add('hidden');
+  try { localStorage.setItem(GUIDE_KEY, '1'); } catch(e) {}
+}
+
+document.getElementById('guide-next').onclick = () => {
+  if (guideStep < GUIDE_STEPS.length - 1) { guideStep++; renderGuideStep(); }
+  else hideGuide();
+};
+document.getElementById('guide-prev').onclick = () => {
+  if (guideStep > 0) { guideStep--; renderGuideStep(); }
+};
+document.getElementById('guide-skip').onclick = hideGuide;
+document.getElementById('guide-overlay').onclick = e => {
+  if (e.target === document.getElementById('guide-overlay')) hideGuide();
+};
+document.getElementById('guide-btn').onclick = () => showGuide(0);
+
 loadState();
 render();
+if (!localStorage.getItem(GUIDE_KEY)) showGuide();
 </script>
 </body>
 </html>
