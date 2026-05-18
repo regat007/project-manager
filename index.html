@@ -7,7 +7,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 #app { display: flex; flex-direction: column; height: 100vh; min-height: 520px; background: #1a1a18; color: #c2c0b6; font-family: var(--font-sans, sans-serif); }
 #toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 0.5px solid #3a3a36; flex-shrink: 0; }
-#toolbar h1 { font-size: 13px; font-weight: 500; color: #c2c0b6; flex: 1; }
+#toolbar h1 { font-size: 13px; font-weight: 500; color: #c2c0b6; }
+#guide-btn { padding: 5px 9px; }
 .tb-btn { background: #2c2c2a; border: 0.5px solid #4a4a46; color: #c2c0b6; font-size: 12px; padding: 5px 14px; border-radius: 6px; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
 .tb-btn:hover { background: #3a3a36; }
 .tb-btn.view-active { background: #2e2b42; border-color: #534ab7; color: #a09ae8; }
@@ -168,6 +169,22 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 #todo-clear-done:hover { color: #888780; }
 .todo-empty { padding: 32px 14px; text-align: center; color: #3a3a36; font-size: 12px; }
 
+/* ── Workspace tabs ── */
+#workspace-tabs { display: flex; align-items: center; gap: 4px; }
+.ws-tab { font-size: 12px; padding: 4px 12px; }
+.ws-tab.view-active { background: #2e2b42; border-color: #534ab7; color: #a09ae8; }
+.ws-add-btn { font-size: 14px; padding: 3px 9px; color: #5f5e5a; }
+.ws-add-btn:hover { color: #c2c0b6; }
+.ws-name-input {
+  background: #252523; border: 0.5px solid #534ab7; border-radius: 6px;
+  color: #c2c0b6; font-size: 12px; font-family: inherit;
+  padding: 4px 10px; outline: none; width: 90px;
+}
+#workspace-tabs::after {
+  content: ''; display: block; width: 0.5px; height: 16px;
+  background: #3a3a36; margin: 0 4px;
+}
+
 /* ── Flags ── */
 .ctrl-btn.flag-btn.flag-today      { color: #4a9eff; background: #0d1a2a; border-color: #1e4070; }
 .ctrl-btn.flag-btn.flag-tomorrow   { color: #f0a030; background: #221908; border-color: #6b480e; }
@@ -269,7 +286,7 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 /* ── Options dropdown ── */
 #options-wrap { position: relative; }
 #options-dropdown {
-  position: absolute; top: calc(100% + 6px); right: 0;
+  position: absolute; top: calc(100% + 6px); left: 0;
   background: #252523; border: 0.5px solid #4a4a46; border-radius: 8px;
   padding: 4px; min-width: 168px; z-index: 200;
   box-shadow: 0 8px 32px rgba(0,0,0,0.55);
@@ -427,63 +444,25 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 #guide-skip { margin-left: auto; background: none; border: none; color: #4a4a46; font-size: 11px; cursor: pointer; padding: 4px 0; font-family: inherit; }
 #guide-skip:hover { color: #888780; }
 
-/* ── Storage overlay ── */
-#storage-overlay {
-  position: fixed; inset: 0; z-index: 500;
-  background: rgba(15,15,14,0.9);
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
-}
-#storage-overlay.hidden { display: none; }
-#storage-card {
-  background: #252523; border: 0.5px solid #4a4a46; border-radius: 14px;
-  padding: 32px 36px; max-width: 380px; width: calc(100% - 48px);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
-  display: flex; flex-direction: column; gap: 14px;
-}
-#storage-card h2 { font-size: 15px; font-weight: 600; color: #e0ddd4; }
-#storage-card p { font-size: 12px; color: #888780; line-height: 1.65; }
-.storage-btn {
-  background: #2c2c2a; border: 0.5px solid #4a4a46; color: #c2c0b6;
-  font-size: 13px; font-family: inherit; padding: 11px 16px; border-radius: 8px;
-  cursor: pointer; width: 100%; text-align: left; transition: background .12s;
-}
-.storage-btn:hover { background: #3a3a36; }
-.storage-btn.primary { background: #3d3476; border-color: #7f77dd; color: #d0ccff; }
-.storage-btn.primary:hover { background: #534ab7; }
-.storage-btn .sb-label { font-weight: 500; display: block; }
-.storage-btn .sb-desc { font-size: 11px; color: #5f5e5a; display: block; margin-top: 3px; }
-.storage-btn.primary .sb-desc { color: #a09ae8; }
-.storage-divider { border: none; border-top: 0.5px solid #3a3a36; margin: 2px 0; }
-/* ── File status in toolbar ── */
-#file-status {
-  font-size: 11px; color: #4a4a46; display: flex; align-items: center; gap: 5px;
-  max-width: 180px; overflow: hidden;
-}
-#file-status.connected { color: #5dcaa5; }
-#file-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-#file-status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="toolbar">
     <h1>Projects</h1>
-    <div id="file-status"><span id="file-status-dot"></span><span id="file-status-text">No file</span></div>
-    <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
-      ◈ Essentials <span class="todo-count">0</span>
-    </button>
+    <div id="workspace-tabs"></div>
+    <button id="guide-btn" class="tb-btn" title="Show guide">?</button>
     <div id="options-wrap">
-      <button id="options-btn" class="tb-btn" title="Options">⋯ Options</button>
+      <button id="options-btn" class="tb-btn" title="Options">⋯</button>
       <div id="options-dropdown">
-        <button id="change-file-btn" class="opt-item">⊙ Change data file</button>
-        <div style="margin: 4px 6px; height: 0.5px; background: #3a3a36;"></div>
         <button id="export-btn" class="opt-item">↓ Export backup</button>
         <button id="import-btn" class="opt-item">↑ Import backup</button>
         <input id="import-file" type="file" accept=".json" style="display:none">
       </div>
     </div>
-    <button id="guide-btn" class="tb-btn" title="Show guide">? Guide</button>
+    <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
+      ◈ Essentials <span class="todo-count">0</span>
+    </button>
     <button id="add-btn" class="tb-btn">+ New project</button>
   </div>
   <div id="canvas-wrap">
@@ -502,15 +481,6 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
   <button class="vt-btn vt-active" data-view="graph">⊞ Map</button>
   <button class="vt-btn" data-view="schedule">⊡ Schedule</button>
   <button class="vt-btn" data-view="momentum">◎ Momentum</button>
-</div>
-
-<!-- Storage overlay -->
-<div id="storage-overlay" class="hidden">
-  <div id="storage-card">
-    <h2 id="storage-title">Connect your data file</h2>
-    <p id="storage-desc"></p>
-    <div id="storage-actions"></div>
-  </div>
 </div>
 
 <!-- Minimap -->
@@ -553,6 +523,8 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 
 <script>
 const STORAGE_KEY = 'pgraph_v4';
+const WORKSPACES_KEY = 'pgraph_workspaces';
+let workspacesMeta = { active: 'Work', names: ['Work', 'Home'] };
 const NODE_W = 200, NODE_H_BASE = 78, COL_GAP = 80, ROW_GAP = 24, PROJ_GAP = 60;
 const OFFSET_X = 60, OFFSET_Y = 60;
 const MINI_W = 160, MINI_H = 110;
@@ -568,15 +540,17 @@ const PALETTE = [
   { border: '#5f5e5a', glow: 'rgba(95,94,90,0.22)',    arrow: '#888780', bar: '#b4b2a9' },
 ];
 
-const FLAG_LABELS = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● TBC', 'non-urgent': '● Non-urgent' };
-const FLAG_CYCLE  = { today: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: 'non-urgent', 'non-urgent': null };
+const FLAG_LABELS   = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● TBC', 'non-urgent': '● Non-urgent' };
+const FLAG_CYCLE    = { today: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: 'non-urgent', 'non-urgent': null };
+const HEALTH_LABELS = { active: 'Active', drifting: 'Drifting', stalled: 'Stalled', complete: 'Complete' };
+const GUIDE_KEY     = 'pgraph_guided';
 
 let state = { projects: [], todos: [] };
 let idC = 1;
 let activeEdit = null;
 let lastPositions = {};
 let currentView = 'graph';
-let descDoneCache = new Map(); // 'graph' | 'schedule' | 'momentum'
+let descDoneCache = new Map();
 
 const canvasWrap = document.getElementById('canvas-wrap');
 
@@ -785,201 +759,56 @@ document.addEventListener('mouseup', e => {
   }
 });
 
+// ── Workspace meta ────────────────────────────────────────────────────────────
+function wsStorageKey(name) {
+  return STORAGE_KEY + '_ws_' + name.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function saveWorkspacesMeta() {
+  try { localStorage.setItem(WORKSPACES_KEY, JSON.stringify(workspacesMeta)); } catch(e) {}
+}
+
+function loadWorkspacesMeta() {
+  try {
+    const s = localStorage.getItem(WORKSPACES_KEY);
+    if (s) {
+      workspacesMeta = JSON.parse(s);
+    } else {
+      // Migration: carry existing data into the Work workspace
+      const old = localStorage.getItem(STORAGE_KEY);
+      if (old) localStorage.setItem(wsStorageKey('Work'), old);
+      workspacesMeta = { active: 'Work', names: ['Work', 'Home'] };
+      saveWorkspacesMeta();
+    }
+  } catch(e) {}
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 function genId()  { return 'n' + (idC++); }
 function todoId() { return 't' + Date.now() + Math.random().toString(36).slice(2, 6); }
 
-// ── File System Access API storage ───────────────────────────────────────────
-const FSAA = 'showOpenFilePicker' in window;
-let fileHandle = null;
-
-function idbOpen() {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open('pgraph_fs', 1);
-    r.onupgradeneeded = e => e.target.result.createObjectStore('handles');
-    r.onsuccess = e => res(e.target.result);
-    r.onerror = rej;
-  });
+function saveState() {
+  try { localStorage.setItem(wsStorageKey(workspacesMeta.active), JSON.stringify(state)); } catch(e) {}
 }
-async function idbGet(key) {
+
+function loadState() {
   try {
-    const db = await idbOpen();
-    return new Promise((res, rej) => {
-      const tx = db.transaction('handles', 'readonly');
-      const req = tx.objectStore('handles').get(key);
-      req.onsuccess = () => res(req.result ?? null);
-      req.onerror = rej;
-    });
-  } catch { return null; }
-}
-async function idbPut(key, val) {
-  try {
-    const db = await idbOpen();
-    return new Promise((res, rej) => {
-      const tx = db.transaction('handles', 'readwrite');
-      tx.objectStore('handles').put(val, key);
-      tx.oncomplete = res; tx.onerror = rej;
-    });
-  } catch {}
-}
-
-function updateFileStatus() {
-  const el = document.getElementById('file-status');
-  const txt = document.getElementById('file-status-text');
-  if (fileHandle) { el.className = 'connected'; txt.textContent = fileHandle.name; }
-  else { el.className = ''; txt.textContent = 'No file'; }
-}
-
-function applyLoadedData(loaded) {
-  if (!Array.isArray(loaded.projects)) throw new Error('Invalid format');
-  state.projects = loaded.projects;
-  state.todos = Array.isArray(loaded.todos) ? loaded.todos : [];
-  let mx = 0;
-  function walk(n) {
-    mx = Math.max(mx, parseInt(n.id?.slice(1)) || 0);
-    if (!('completedAt' in n)) n.completedAt = null;
-    if (!('createdAt' in n)) n.createdAt = null;
-    (n.children || []).forEach(walk);
-  }
-  state.projects.forEach(walk);
-  idC = mx + 1;
-}
-
-async function loadFromFile() {
-  const file = await fileHandle.getFile();
-  applyLoadedData(JSON.parse(await file.text()));
-}
-
-async function saveState() {
-  if (!FSAA || !fileHandle) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-    return;
-  }
-  try {
-    const w = await fileHandle.createWritable();
-    await w.write(JSON.stringify(state, null, 2));
-    await w.close();
-  } catch(e) { console.error('Save failed:', e); }
-}
-
-// ── Storage overlay ───────────────────────────────────────────────────────────
-function makeStorageBtn(primary, label, desc, onClick) {
-  const btn = document.createElement('button');
-  btn.className = 'storage-btn' + (primary ? ' primary' : '');
-  btn.innerHTML = `<span class="sb-label">${label}</span><span class="sb-desc">${desc}</span>`;
-  btn.onclick = onClick;
-  return btn;
-}
-
-function finishStorageSetup() {
-  updateFileStatus();
-  document.getElementById('storage-overlay').classList.add('hidden');
-  render();
-  if (!localStorage.getItem(GUIDE_KEY)) showGuide();
-}
-
-async function pickExistingFile() {
-  try {
-    const [handle] = await window.showOpenFilePicker({
-      types: [{ description: 'Projects JSON', accept: { 'application/json': ['.json'] } }],
-      multiple: false
-    });
-    fileHandle = handle;
-    await idbPut('dataFile', handle);
-    try { await loadFromFile(); } catch {}
-    finishStorageSetup();
-  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
-}
-
-async function createNewFile() {
-  try {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: 'projects.json',
-      types: [{ description: 'Projects JSON', accept: { 'application/json': ['.json'] } }]
-    });
-    fileHandle = handle;
-    await idbPut('dataFile', handle);
-    await saveState();
-    finishStorageSetup();
-  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
-}
-
-async function migrateFromLS(lsData) {
-  try { applyLoadedData(JSON.parse(lsData)); } catch {}
-  try {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: 'projects.json',
-      types: [{ description: 'Projects JSON', accept: { 'application/json': ['.json'] } }]
-    });
-    fileHandle = handle;
-    await idbPut('dataFile', handle);
-    await saveState();
-    localStorage.removeItem(STORAGE_KEY);
-    finishStorageSetup();
-  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
-}
-
-function showStorageOverlay(mode = 'auto') {
-  const title = document.getElementById('storage-title');
-  const desc = document.getElementById('storage-desc');
-  const actions = document.getElementById('storage-actions');
-  actions.innerHTML = '';
-
-  const lsData = localStorage.getItem(STORAGE_KEY);
-  const addDivider = () => { const hr = document.createElement('hr'); hr.className = 'storage-divider'; actions.appendChild(hr); };
-
-  if (mode === 'auto' && fileHandle) {
-    title.textContent = 'Reconnect data file';
-    desc.textContent = `Grant access to "${fileHandle.name}" to continue, or open a different file.`;
-    actions.appendChild(makeStorageBtn(true, `Open ${fileHandle.name}`, 'Continue where you left off', async () => {
-      const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
-      if (perm === 'granted') { try { await loadFromFile(); } catch {} finishStorageSetup(); }
-    }));
-    addDivider();
-    actions.appendChild(makeStorageBtn(false, 'Open different file', 'Choose a different data file', pickExistingFile));
-  } else {
-    if (mode === 'change' && fileHandle) {
-      title.textContent = 'Change data file';
-      desc.textContent = `Currently using "${fileHandle.name}". Choose a different file to switch.`;
-    } else {
-      title.textContent = 'Connect your data file';
-      desc.textContent = 'Projects are saved to a file on your computer. Store it in OneDrive, Dropbox, or Google Drive for cross-device access.';
+    const s = localStorage.getItem(wsStorageKey(workspacesMeta.active));
+    if (s) {
+      const loaded = JSON.parse(s);
+      state = loaded;
+      if (!Array.isArray(state.todos)) state.todos = [];
+      let mx = 0;
+      function walk(n) {
+        mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
+        if (!('completedAt' in n)) n.completedAt = null;
+        if (!('createdAt' in n)) n.createdAt = null;
+        (n.children || []).forEach(walk);
+      }
+      state.projects.forEach(walk);
+      idC = mx + 1;
     }
-    if (lsData && mode === 'auto') {
-      actions.appendChild(makeStorageBtn(true, 'Migrate from browser storage', 'Move your existing projects to a file', () => migrateFromLS(lsData)));
-      addDivider();
-      actions.appendChild(makeStorageBtn(false, 'Open existing file', 'Load a previously saved projects file', pickExistingFile));
-    } else {
-      actions.appendChild(makeStorageBtn(true, 'Open existing file', 'Load a previously saved projects file', pickExistingFile));
-    }
-    actions.appendChild(makeStorageBtn(false, 'Create new file', 'Start fresh with a new file', createNewFile));
-  }
-
-  document.getElementById('storage-overlay').classList.remove('hidden');
-}
-
-async function initStorage() {
-  if (!FSAA) {
-    try {
-      const s = localStorage.getItem(STORAGE_KEY);
-      if (s) applyLoadedData(JSON.parse(s));
-    } catch {}
-    render();
-    if (!localStorage.getItem(GUIDE_KEY)) showGuide();
-    return;
-  }
-  fileHandle = await idbGet('dataFile');
-  if (fileHandle) {
-    const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
-    if (perm === 'granted') {
-      try { await loadFromFile(); } catch {}
-      updateFileStatus();
-      render();
-      if (!localStorage.getItem(GUIDE_KEY)) showGuide();
-      return;
-    }
-  }
-  showStorageOverlay('auto');
+  } catch(e) {}
 }
 
 function newNode(title = 'New project') {
@@ -1354,16 +1183,6 @@ function renderScheduleView() {
 }
 
 // ── Momentum View ─────────────────────────────────────────────────────────────
-function timeAgo(ts) {
-  const diff = Date.now() - ts;
-  const MIN = 60000, HOUR = 3600000, DAY = 86400000;
-  if (diff < MIN)        return 'just now';
-  if (diff < HOUR)       return `${Math.floor(diff / MIN)}m ago`;
-  if (diff < DAY)        return `${Math.floor(diff / HOUR)}h ago`;
-  if (diff < 2 * DAY)    return 'yesterday';
-  return `${Math.floor(diff / DAY)}d ago`;
-}
-
 function renderMomentumView() {
   const now = Date.now();
   const DAY = 86400000;
@@ -1599,13 +1418,6 @@ function renderMomentumView() {
 }
 
 // ── Graph Render ──────────────────────────────────────────────────────────────
-function getNodeAtPoint(x, y) {
-  for (const [id, pos] of Object.entries(lastPositions)) {
-    if (x >= pos.x && x <= pos.x + pos.w && y >= pos.y && y <= pos.y + pos.h) return id;
-  }
-  return null;
-}
-
 function render() {
   descDoneCache = new Map();
   const nodesLayer = document.getElementById('nodes-layer');
@@ -1690,8 +1502,7 @@ function render() {
     if (isRoot) {
       const health = getProjectHealth(proj);
       const momentum = getProjectMomentum(proj);
-      const HEALTH_LABELS = { active: 'Active', drifting: 'Drifting', stalled: 'Stalled', complete: 'Complete' };
-      const suffix = (health === 'active' && momentum > 0) ? ` · ${momentum} this week` : '';
+const suffix = (health === 'active' && momentum > 0) ? ` · ${momentum} this week` : '';
       healthBadgeHtml = `<div class="node-health health-${health}">● ${HEALTH_LABELS[health]}${suffix}</div>`;
     }
     el.innerHTML = `
@@ -1772,6 +1583,62 @@ function render() {
 function esc(s)  { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function escA(s) { return String(s || '').replace(/"/g, '&quot;'); }
 
+// ── Workspace switching ───────────────────────────────────────────────────────
+function renderWorkspaceTabs() {
+  const tabsEl = document.getElementById('workspace-tabs');
+  tabsEl.innerHTML = workspacesMeta.names.map(name =>
+    `<button class="tb-btn ws-tab${name === workspacesMeta.active ? ' view-active' : ''}" data-ws="${escA(name)}">${esc(name)}</button>`
+  ).join('') + '<button class="tb-btn ws-add-btn" title="New workspace">+</button>';
+
+  tabsEl.querySelectorAll('.ws-tab').forEach(btn => {
+    btn.onclick = () => switchWorkspace(btn.dataset.ws);
+  });
+
+  tabsEl.querySelector('.ws-add-btn').onclick = () => {
+    const addBtn = tabsEl.querySelector('.ws-add-btn');
+    addBtn.style.display = 'none';
+    const inp = document.createElement('input');
+    inp.className = 'ws-name-input';
+    inp.placeholder = 'Name…';
+    inp.maxLength = 24;
+    tabsEl.insertBefore(inp, null);
+    inp.focus();
+    function commit() {
+      const name = inp.value.trim();
+      inp.remove();
+      addBtn.style.display = '';
+      if (name) addWorkspace(name);
+    }
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { inp.remove(); addBtn.style.display = ''; }
+    });
+    inp.addEventListener('blur', commit);
+  };
+}
+
+function switchWorkspace(name) {
+  if (name === workspacesMeta.active) return;
+  if (activeEdit) commitEdit();
+  workspacesMeta.active = name;
+  saveWorkspacesMeta();
+  state = { projects: [], todos: [] };
+  idC = 1;
+  lastPositions = {};
+  loadState();
+  render();
+  renderTodos();
+  renderWorkspaceTabs();
+  showView('graph');
+}
+
+function addWorkspace(name) {
+  if (!name || workspacesMeta.names.includes(name)) return;
+  workspacesMeta.names.push(name);
+  saveWorkspacesMeta();
+  switchWorkspace(name);
+}
+
 document.getElementById('add-btn').onclick = () => {
   if (activeEdit) commitEdit();
   const p = newNode('New project');
@@ -1809,11 +1676,6 @@ function exportState() {
   const date = new Date().toISOString().slice(0, 10);
   downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
 }
-
-document.getElementById('change-file-btn').onclick = () => {
-  document.getElementById('options-dropdown').classList.remove('open');
-  showStorageOverlay('change');
-};
 
 document.getElementById('export-btn').onclick = exportState;
 
@@ -1860,7 +1722,6 @@ let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 120); });
 
 // ── Guide ─────────────────────────────────────────────────────────────────────
-const GUIDE_KEY = 'pgraph_guided';
 const GUIDE_STEPS = [
   {
     icon: '◻',
@@ -1932,7 +1793,12 @@ document.getElementById('guide-overlay').onclick = e => {
 };
 document.getElementById('guide-btn').onclick = () => showGuide(0);
 
-initStorage();
+loadWorkspacesMeta();
+loadState();
+render();
+renderTodos();
+renderWorkspaceTabs();
+if (!localStorage.getItem(GUIDE_KEY)) showGuide();
 </script>
 </body>
 </html>
