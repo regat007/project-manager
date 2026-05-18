@@ -516,7 +516,7 @@ const PALETTE = [
   { border: '#5f5e5a', glow: 'rgba(95,94,90,0.22)',    arrow: '#888780', bar: '#b4b2a9' },
 ];
 
-const FLAG_LABELS = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● Urgent', 'non-urgent': '● Non-urgent' };
+const FLAG_LABELS = { today: '● Today', tomorrow: '● Tomorrow', week: '● This week', urgent: '● TBC', 'non-urgent': '● Non-urgent' };
 const FLAG_CYCLE  = { today: 'tomorrow', tomorrow: 'week', week: 'urgent', urgent: 'non-urgent', 'non-urgent': null };
 
 let state = { projects: [], todos: [] };
@@ -1024,7 +1024,7 @@ const SV_SECTIONS = [
   { key: 'tomorrow',   label: 'Tomorrow',   color: '#f0a030', bg: 'rgba(240,160,48,0.08)',   border: 'rgba(240,160,48,0.25)' },
   { key: 'week',       label: 'This Week',  color: '#a78bfa', bg: 'rgba(167,139,250,0.08)',  border: 'rgba(167,139,250,0.25)' },
   { key: 'non-urgent', label: 'Non-urgent', color: '#888780', bg: 'rgba(136,135,128,0.06)',  border: 'rgba(136,135,128,0.2)' },
-  { key: 'urgent',     label: 'Urgent',     color: '#e85050', bg: 'rgba(232,80,80,0.08)',    border: 'rgba(232,80,80,0.25)' },
+  { key: 'urgent',     label: 'TBC',        color: '#e85050', bg: 'rgba(232,80,80,0.08)',    border: 'rgba(232,80,80,0.25)' },
 ];
 
 function collectFlaggedTasks() {
@@ -1607,7 +1607,7 @@ const GUIDE_STEPS = [
   {
     icon: '⚑',
     title: 'Flagging tasks',
-    body: 'Hover any card and click <strong>⚑</strong> to set a flag: <em>Today</em>, <em>Tomorrow</em>, <em>This week</em>, or <em>Urgent</em>. Flagged tasks surface automatically in the Schedule view.',
+    body: 'Hover any card and click <strong>⚑</strong> to set a flag: <em>Today</em>, <em>Tomorrow</em>, <em>This week</em>, or <em>TBC</em>. Flagged tasks surface automatically in the Schedule view.',
   },
   {
     icon: '⊡',
