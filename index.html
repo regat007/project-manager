@@ -40,18 +40,12 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 .ctrl-btn:hover { background: #3a3a36; color: #c2c0b6; }
 .ctrl-btn.done-btn.active { background: #2a2a28; color: #888780; }
 .ctrl-btn.del-btn:hover { background: #501313; border-color: #791f1f; color: #f09595; }
-.ctrl-btn.priority-btn.active { color: #e8c547; background: #28240e; border-color: #6b5a1c; }
-@keyframes pglow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 14px 4px var(--glow-color), 0 4px 24px var(--glow-color); }
-  50%       { box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 32px 10px var(--glow-color), 0 8px 48px var(--glow-color); }
-}
-.node-el.priority { animation: pglow 2.2s ease-in-out infinite; }
 @keyframes rglow {
   0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.07), 0 0 22px 7px var(--glow-color), 0 6px 40px var(--glow-color); }
   50%       { box-shadow: 0 0 0 2px rgba(255,255,255,0.07), 0 0 52px 18px var(--glow-color), 0 12px 72px var(--glow-color); }
 }
 .node-el.root { background: #332f28; border-radius: 12px; border-top: 3px solid var(--bar-color, #7f77dd) !important; }
-.node-el.root:not(.done):not(.priority) { animation: rglow 2.8s ease-in-out infinite; }
+.node-el.root:not(.done) { animation: rglow 2.8s ease-in-out infinite; }
 .node-el.root .node-title { font-size: 18px; font-weight: 700; color: #f5f2e8; letter-spacing: 0.02em; }
 .node-el.root .node-subtitle { font-size: 12px; color: #a09d94; }
 .add-child-btn {
@@ -529,7 +523,8 @@ let state = { projects: [], todos: [] };
 let idC = 1;
 let activeEdit = null;
 let lastPositions = {};
-let currentView = 'graph'; // 'graph' | 'schedule' | 'momentum'
+let currentView = 'graph';
+let descDoneCache = new Map(); // 'graph' | 'schedule' | 'momentum'
 
 const canvasWrap = document.getElementById('canvas-wrap');
 
@@ -556,13 +551,7 @@ function showView(view) {
 }
 
 function navigateToNode(nodeId) {
-  currentView = 'graph';
-  canvasWrap.style.display = '';
-  document.getElementById('schedule-view').classList.remove('visible');
-  document.getElementById('momentum-view').classList.remove('visible');
-  document.getElementById('minimap').style.display = '';
-  updateViewToggle();
-
+  showView('graph');
   const pos = lastPositions[nodeId];
   if (pos) {
     const cx = pos.x + pos.w / 2 - canvasWrap.clientWidth / 2;
@@ -773,12 +762,16 @@ function loadState() {
 }
 
 function newNode(title = 'New project') {
-  return { id: genId(), title, subtitle: '', note: '', done: false, priority: false, flag: null, completedAt: null, createdAt: Date.now(), children: [] };
+  return { id: genId(), title, subtitle: '', note: '', done: false, flag: null, completedAt: null, createdAt: Date.now(), children: [] };
 }
 
 function allDescendantsDone(node) {
-  if (!node.children || !node.children.length) return true;
-  return node.children.every(c => c.done && allDescendantsDone(c));
+  if (descDoneCache.has(node.id)) return descDoneCache.get(node.id);
+  const result = !node.children || !node.children.length
+    ? true
+    : node.children.every(c => c.done && allDescendantsDone(c));
+  descDoneCache.set(node.id, result);
+  return result;
 }
 
 function getProjectMomentum(proj) {
@@ -796,7 +789,7 @@ function getProjectHealth(proj) {
   let total = 0, done = 0, hasOpenFlagOrPriority = false;
   function scan(node) {
     total++;
-    if (node.done) { done++; } else { if (node.flag || node.priority) hasOpenFlagOrPriority = true; }
+    if (node.done) { done++; } else { if (node.flag) hasOpenFlagOrPriority = true; }
     (node.children || []).forEach(scan);
   }
   scan(proj);
@@ -1195,6 +1188,12 @@ function renderMomentumView() {
     else break;
   }
 
+  const withCycle = recent.filter(({ node }) => node.createdAt && node.completedAt);
+  const avgCycleDays = withCycle.length > 0
+    ? Math.round(withCycle.reduce((s, { node }) => s + (node.completedAt - node.createdAt), 0) / withCycle.length / DAY)
+    : null;
+  const cycleLabel = avgCycleDays === null ? '—' : avgCycleDays === 0 ? '< 1d' : `${avgCycleDays}d`;
+
   const projMap = new Map();
   recent.forEach(t => {
     if (!projMap.has(t.projTitle)) projMap.set(t.projTitle, { col: t.projCol, tasks: [] });
@@ -1287,16 +1286,19 @@ function renderMomentumView() {
             <span class="mv-proj-heading-count">${tasks.length} completed</span>
           </div>
           <div>
-            ${tasks.map(({ node, projCol: c }) => `
+            ${tasks.map(({ node, projCol: c }) => {
+              const cycleDays = (node.createdAt && node.completedAt) ? Math.round((node.completedAt - node.createdAt) / DAY) : null;
+              const cycleStr = cycleDays === null ? '' : cycleDays === 0 ? 'same day' : `${cycleDays}d cycle`;
+              return `
               <div class="mv-task">
                 <div class="mv-check-ring" style="border-color:${c.bar}; color:${c.bar}">✓</div>
                 <div class="mv-task-info">
                   <div class="mv-task-name">${esc(node.title)}</div>
                   ${node.subtitle ? `<div class="mv-task-sub">${esc(node.subtitle)}</div>` : ''}
                 </div>
-                <div class="mv-task-age">${timeAgo(node.completedAt)}</div>
+                <div class="mv-task-age">${timeAgo(node.completedAt)}${cycleStr ? `<br><span style="font-size:9px;color:#4a4a46">${cycleStr}</span>` : ''}</div>
               </div>
-            `).join('')}
+            `;}).join('')}
           </div>
         </div>
       `;
@@ -1324,6 +1326,7 @@ function renderMomentumView() {
           <div class="mv-stat"><span>This week</span><span class="mv-stat-val">${recent.length} done</span></div>
           <div class="mv-stat"><span>Best day</span><span class="mv-stat-val">${bestLabel}</span></div>
           <div class="mv-stat"><span>Streak</span><span class="mv-stat-val">${streak > 0 ? `${streak} day${streak !== 1 ? 's' : ''}` : 'None yet'}</span></div>
+          <div class="mv-stat"><span>Avg cycle</span><span class="mv-stat-val">${cycleLabel}</span></div>
           <div class="mv-stat"><span>Projects active</span><span class="mv-stat-val">${projMap.size}</span></div>
         </div>
       </div>
@@ -1341,6 +1344,7 @@ function getNodeAtPoint(x, y) {
 }
 
 function render() {
+  descDoneCache = new Map();
   const nodesLayer = document.getElementById('nodes-layer');
   const svg = document.getElementById('arrows');
   const empty = document.getElementById('empty-state');
@@ -1398,15 +1402,15 @@ function render() {
     }
 
     const el = document.createElement('div');
-    el.className = 'node-el' + (!parentId ? ' root' : '') + (node.done ? ' done' : '') + (node.priority && !node.done ? ' priority' : '');
+    el.className = 'node-el' + (!parentId ? ' root' : '') + (node.done ? ' done' : '');
     el.id = 'node-' + node.id;
     el.style.left   = pos.x + 'px';
     el.style.top    = pos.y + 'px';
     el.style.width  = pos.w + 'px';
     const isRoot = !parentId;
-    el.style.setProperty('--glow-color', col.glow);
-    el.style.setProperty('--bar-color', col.bar);
     if (isRoot) {
+      el.style.setProperty('--glow-color', col.glow);
+      el.style.setProperty('--bar-color', col.bar);
       el.style.borderTop    = `3px solid ${col.bar}`;
       el.style.borderRight  = `0.5px solid ${col.border}`;
       el.style.borderBottom = `0.5px solid ${col.border}`;
@@ -1415,9 +1419,7 @@ function render() {
       el.style.border     = `0.5px solid ${col.border}`;
       el.style.borderLeft = `3px solid ${col.bar}`;
     }
-    el.style.boxShadow = (node.priority && !node.done) ? '' :
-      (node.done ? 'none' :
-        (isRoot ? '' : `0 0 0 1px ${col.border}22, 0 4px 24px ${col.glow}`));
+    el.style.boxShadow = node.done ? 'none' : (isRoot ? '' : `0 0 0 1px ${col.border}22, 0 4px 24px ${col.glow}`);
 
     const flagClass = node.flag ? ' flag-' + node.flag : '';
     const upToDate = !node.done && node.children && node.children.length > 0 && allDescendantsDone(node);
@@ -1432,7 +1434,6 @@ function render() {
     el.innerHTML = `
       <div class="node-controls">
         <div class="ctrl-btn done-btn${node.done ? ' active' : ''}" title="Done">✓</div>
-        <div class="ctrl-btn priority-btn${node.priority ? ' active' : ''}" title="Priority">★</div>
         <div class="ctrl-btn flag-btn${flagClass}" title="Flag">⚑</div>
         <div class="ctrl-btn del-btn" title="Delete">✕</div>
       </div>
@@ -1451,7 +1452,6 @@ function render() {
       saveState();
       render();
     };
-    el.querySelector('.priority-btn').onclick = e => { e.stopPropagation(); node.priority = !node.priority; saveState(); render(); };
     el.querySelector('.flag-btn').onclick = e => { e.stopPropagation(); node.flag = node.flag ? FLAG_CYCLE[node.flag] : 'today'; saveState(); render(); };
     el.querySelector('.del-btn').onclick = e => {
       e.stopPropagation();
@@ -1503,7 +1503,6 @@ function render() {
 
   projData.forEach(({ proj, pi }) => renderNode(proj, null, proj, pi));
 
-  renderTodos();
   renderMinimap();
 }
 
@@ -1589,7 +1588,8 @@ document.getElementById('import-file').addEventListener('change', e => {
   reader.readAsText(file);
 });
 
-window.addEventListener('resize', render);
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 120); });
 
 // ── Guide ─────────────────────────────────────────────────────────────────────
 const GUIDE_KEY = 'pgraph_guided';
