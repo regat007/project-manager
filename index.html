@@ -426,18 +426,58 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
 #guide-next:hover { background: #635ac7; }
 #guide-skip { margin-left: auto; background: none; border: none; color: #4a4a46; font-size: 11px; cursor: pointer; padding: 4px 0; font-family: inherit; }
 #guide-skip:hover { color: #888780; }
+
+/* ── Storage overlay ── */
+#storage-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(15,15,14,0.9);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#storage-overlay.hidden { display: none; }
+#storage-card {
+  background: #252523; border: 0.5px solid #4a4a46; border-radius: 14px;
+  padding: 32px 36px; max-width: 380px; width: calc(100% - 48px);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  display: flex; flex-direction: column; gap: 14px;
+}
+#storage-card h2 { font-size: 15px; font-weight: 600; color: #e0ddd4; }
+#storage-card p { font-size: 12px; color: #888780; line-height: 1.65; }
+.storage-btn {
+  background: #2c2c2a; border: 0.5px solid #4a4a46; color: #c2c0b6;
+  font-size: 13px; font-family: inherit; padding: 11px 16px; border-radius: 8px;
+  cursor: pointer; width: 100%; text-align: left; transition: background .12s;
+}
+.storage-btn:hover { background: #3a3a36; }
+.storage-btn.primary { background: #3d3476; border-color: #7f77dd; color: #d0ccff; }
+.storage-btn.primary:hover { background: #534ab7; }
+.storage-btn .sb-label { font-weight: 500; display: block; }
+.storage-btn .sb-desc { font-size: 11px; color: #5f5e5a; display: block; margin-top: 3px; }
+.storage-btn.primary .sb-desc { color: #a09ae8; }
+.storage-divider { border: none; border-top: 0.5px solid #3a3a36; margin: 2px 0; }
+/* ── File status in toolbar ── */
+#file-status {
+  font-size: 11px; color: #4a4a46; display: flex; align-items: center; gap: 5px;
+  max-width: 180px; overflow: hidden;
+}
+#file-status.connected { color: #5dcaa5; }
+#file-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+#file-status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="toolbar">
     <h1>Projects</h1>
+    <div id="file-status"><span id="file-status-dot"></span><span id="file-status-text">No file</span></div>
     <button id="todo-toggle-btn" class="tb-btn" title="Essentials">
       ◈ Essentials <span class="todo-count">0</span>
     </button>
     <div id="options-wrap">
       <button id="options-btn" class="tb-btn" title="Options">⋯ Options</button>
       <div id="options-dropdown">
+        <button id="change-file-btn" class="opt-item">⊙ Change data file</button>
+        <div style="margin: 4px 6px; height: 0.5px; background: #3a3a36;"></div>
         <button id="export-btn" class="opt-item">↓ Export backup</button>
         <button id="import-btn" class="opt-item">↑ Import backup</button>
         <input id="import-file" type="file" accept=".json" style="display:none">
@@ -462,6 +502,15 @@ svg#arrows { position: absolute; top: 0; left: 0; pointer-events: none; overflow
   <button class="vt-btn vt-active" data-view="graph">⊞ Map</button>
   <button class="vt-btn" data-view="schedule">⊡ Schedule</button>
   <button class="vt-btn" data-view="momentum">◎ Momentum</button>
+</div>
+
+<!-- Storage overlay -->
+<div id="storage-overlay" class="hidden">
+  <div id="storage-card">
+    <h2 id="storage-title">Connect your data file</h2>
+    <p id="storage-desc"></p>
+    <div id="storage-actions"></div>
+  </div>
 </div>
 
 <!-- Minimap -->
@@ -740,28 +789,197 @@ document.addEventListener('mouseup', e => {
 function genId()  { return 'n' + (idC++); }
 function todoId() { return 't' + Date.now() + Math.random().toString(36).slice(2, 6); }
 
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+// ── File System Access API storage ───────────────────────────────────────────
+const FSAA = 'showOpenFilePicker' in window;
+let fileHandle = null;
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('pgraph_fs', 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = rej;
+  });
+}
+async function idbGet(key) {
+  try {
+    const db = await idbOpen();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get(key);
+      req.onsuccess = () => res(req.result ?? null);
+      req.onerror = rej;
+    });
+  } catch { return null; }
+}
+async function idbPut(key, val) {
+  try {
+    const db = await idbOpen();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(val, key);
+      tx.oncomplete = res; tx.onerror = rej;
+    });
+  } catch {}
 }
 
-function loadState() {
+function updateFileStatus() {
+  const el = document.getElementById('file-status');
+  const txt = document.getElementById('file-status-text');
+  if (fileHandle) { el.className = 'connected'; txt.textContent = fileHandle.name; }
+  else { el.className = ''; txt.textContent = 'No file'; }
+}
+
+function applyLoadedData(loaded) {
+  if (!Array.isArray(loaded.projects)) throw new Error('Invalid format');
+  state.projects = loaded.projects;
+  state.todos = Array.isArray(loaded.todos) ? loaded.todos : [];
+  let mx = 0;
+  function walk(n) {
+    mx = Math.max(mx, parseInt(n.id?.slice(1)) || 0);
+    if (!('completedAt' in n)) n.completedAt = null;
+    if (!('createdAt' in n)) n.createdAt = null;
+    (n.children || []).forEach(walk);
+  }
+  state.projects.forEach(walk);
+  idC = mx + 1;
+}
+
+async function loadFromFile() {
+  const file = await fileHandle.getFile();
+  applyLoadedData(JSON.parse(await file.text()));
+}
+
+async function saveState() {
+  if (!FSAA || !fileHandle) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    return;
+  }
   try {
-    const s = localStorage.getItem(STORAGE_KEY);
-    if (s) {
-      const loaded = JSON.parse(s);
-      state = loaded;
-      if (!Array.isArray(state.todos)) state.todos = [];
-      let mx = 0;
-      function walk(n) {
-        mx = Math.max(mx, parseInt(n.id.slice(1)) || 0);
-        if (!('completedAt' in n)) n.completedAt = null;
-        if (!('createdAt' in n)) n.createdAt = null;
-        (n.children || []).forEach(walk);
-      }
-      state.projects.forEach(walk);
-      idC = mx + 1;
+    const w = await fileHandle.createWritable();
+    await w.write(JSON.stringify(state, null, 2));
+    await w.close();
+  } catch(e) { console.error('Save failed:', e); }
+}
+
+// ── Storage overlay ───────────────────────────────────────────────────────────
+function makeStorageBtn(primary, label, desc, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'storage-btn' + (primary ? ' primary' : '');
+  btn.innerHTML = `<span class="sb-label">${label}</span><span class="sb-desc">${desc}</span>`;
+  btn.onclick = onClick;
+  return btn;
+}
+
+function finishStorageSetup() {
+  updateFileStatus();
+  document.getElementById('storage-overlay').classList.add('hidden');
+  render();
+  if (!localStorage.getItem(GUIDE_KEY)) showGuide();
+}
+
+async function pickExistingFile() {
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'Projects JSON', accept: { 'application/json': ['.json'] } }],
+      multiple: false
+    });
+    fileHandle = handle;
+    await idbPut('dataFile', handle);
+    try { await loadFromFile(); } catch {}
+    finishStorageSetup();
+  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
+}
+
+async function createNewFile() {
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'projects.json',
+      types: [{ description: 'Projects JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    fileHandle = handle;
+    await idbPut('dataFile', handle);
+    await saveState();
+    finishStorageSetup();
+  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
+}
+
+async function migrateFromLS(lsData) {
+  try { applyLoadedData(JSON.parse(lsData)); } catch {}
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'projects.json',
+      types: [{ description: 'Projects JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    fileHandle = handle;
+    await idbPut('dataFile', handle);
+    await saveState();
+    localStorage.removeItem(STORAGE_KEY);
+    finishStorageSetup();
+  } catch(e) { if (e.name !== 'AbortError') console.error(e); }
+}
+
+function showStorageOverlay(mode = 'auto') {
+  const title = document.getElementById('storage-title');
+  const desc = document.getElementById('storage-desc');
+  const actions = document.getElementById('storage-actions');
+  actions.innerHTML = '';
+
+  const lsData = localStorage.getItem(STORAGE_KEY);
+  const addDivider = () => { const hr = document.createElement('hr'); hr.className = 'storage-divider'; actions.appendChild(hr); };
+
+  if (mode === 'auto' && fileHandle) {
+    title.textContent = 'Reconnect data file';
+    desc.textContent = `Grant access to "${fileHandle.name}" to continue, or open a different file.`;
+    actions.appendChild(makeStorageBtn(true, `Open ${fileHandle.name}`, 'Continue where you left off', async () => {
+      const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { try { await loadFromFile(); } catch {} finishStorageSetup(); }
+    }));
+    addDivider();
+    actions.appendChild(makeStorageBtn(false, 'Open different file', 'Choose a different data file', pickExistingFile));
+  } else {
+    if (mode === 'change' && fileHandle) {
+      title.textContent = 'Change data file';
+      desc.textContent = `Currently using "${fileHandle.name}". Choose a different file to switch.`;
+    } else {
+      title.textContent = 'Connect your data file';
+      desc.textContent = 'Projects are saved to a file on your computer. Store it in OneDrive, Dropbox, or Google Drive for cross-device access.';
     }
-  } catch(e) {}
+    if (lsData && mode === 'auto') {
+      actions.appendChild(makeStorageBtn(true, 'Migrate from browser storage', 'Move your existing projects to a file', () => migrateFromLS(lsData)));
+      addDivider();
+      actions.appendChild(makeStorageBtn(false, 'Open existing file', 'Load a previously saved projects file', pickExistingFile));
+    } else {
+      actions.appendChild(makeStorageBtn(true, 'Open existing file', 'Load a previously saved projects file', pickExistingFile));
+    }
+    actions.appendChild(makeStorageBtn(false, 'Create new file', 'Start fresh with a new file', createNewFile));
+  }
+
+  document.getElementById('storage-overlay').classList.remove('hidden');
+}
+
+async function initStorage() {
+  if (!FSAA) {
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s) applyLoadedData(JSON.parse(s));
+    } catch {}
+    render();
+    if (!localStorage.getItem(GUIDE_KEY)) showGuide();
+    return;
+  }
+  fileHandle = await idbGet('dataFile');
+  if (fileHandle) {
+    const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      try { await loadFromFile(); } catch {}
+      updateFileStatus();
+      render();
+      if (!localStorage.getItem(GUIDE_KEY)) showGuide();
+      return;
+    }
+  }
+  showStorageOverlay('auto');
 }
 
 function newNode(title = 'New project') {
@@ -1592,6 +1810,11 @@ function exportState() {
   downloadJSON({ version: STORAGE_KEY, exportedAt: new Date().toISOString(), projects: state.projects, todos: state.todos }, `projects-backup-${date}.json`);
 }
 
+document.getElementById('change-file-btn').onclick = () => {
+  document.getElementById('options-dropdown').classList.remove('open');
+  showStorageOverlay('change');
+};
+
 document.getElementById('export-btn').onclick = exportState;
 
 document.getElementById('import-btn').onclick = () => {
@@ -1709,9 +1932,7 @@ document.getElementById('guide-overlay').onclick = e => {
 };
 document.getElementById('guide-btn').onclick = () => showGuide(0);
 
-loadState();
-render();
-if (!localStorage.getItem(GUIDE_KEY)) showGuide();
+initStorage();
 </script>
 </body>
 </html>
